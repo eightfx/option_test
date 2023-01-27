@@ -63,6 +63,14 @@ impl Greeks for Option{
 }
 
 fn main() {
-	let option = Option::new(OptionStyle::American);
+	let mut option = Option::new(OptionStyle::American);
+	option.add_tick(Tick{
+		strike: 100.0,
+		option_type: OptionType::Call,
+		expiry: 1.0,
+		price: 10.0,
+		open_interest: 100.0,
+	});
+
 	dbg!(option.delta());
 }
