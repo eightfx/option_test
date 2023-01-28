@@ -51,9 +51,14 @@ impl Tick{
 trait EuropianGreeks{
 	fn get_d(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> (FloatType, FloatType);
 	fn delta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn gamma(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn theta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn rho(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn vega(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
 }
 impl EuropianGreeks for Tick{
 	fn get_d(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> (FloatType, FloatType) {
+
 		let t = tick.get_expiry(t);
 		let d1:FloatType;
 		let d2:FloatType;
@@ -67,13 +72,59 @@ impl EuropianGreeks for Tick{
 	fn delta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
 		let (d1, _) = <Tick as EuropianGreeks>::get_d(tick, &risk_free_rate, &initial_price, &t);
 		let g = Gaussian::new(0.0, 1.0);
-		g.distribution(d1)
+		match tick.option_type{
+			OptionType::Call => g.distribution(d1),
+			OptionType::Put => g.distribution(d1) - 1.0,
+		}
 	}
+
+	fn gamma(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		let (d1, _) = <Tick as EuropianGreeks>::get_d(tick, &risk_free_rate, &initial_price, &t);
+		let t = tick.get_expiry(t);
+		(-0.5 * (d1 * d1)).exp() / ((tick.implied_volatility * initial_price * t.sqrt()) * ((2. * FloatType::from(std::f64::consts::PI)).sqrt()))
+	}
+
+	fn theta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		let (d1, d2) = <Tick as EuropianGreeks>::get_d(tick, &risk_free_rate, &initial_price, &t);
+		let t = tick.get_expiry(t);
+		let g = Gaussian::new(0.0, 1.0);
+		match tick.option_type{
+			OptionType::Call =>
+				- risk_free_rate * tick.strike * (-risk_free_rate * t).exp() * g.distribution(d2) - tick.implied_volatility * initial_price * (-0.5 * (d1 * d1)).exp() / (2. * t.sqrt() * ((2. * FloatType::from(std::f64::consts::PI)).sqrt())),
+			OptionType::Put =>
+				- risk_free_rate * tick.strike * (-risk_free_rate * t).exp() * (g.distribution(d2)-1.) + tick.implied_volatility * initial_price * (-0.5 * (d1 * d1)).exp() / (2. * t.sqrt() * ((2. * FloatType::from(std::f64::consts::PI)).sqrt())),
+		}
+
+	}
+
+	fn rho(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		let (_, d2) = <Tick as EuropianGreeks>::get_d(tick, &risk_free_rate, &initial_price, &t);
+		let t = tick.get_expiry(t);
+		let g = Gaussian::new(0.0, 1.0);
+		match tick.option_type{
+			OptionType::Call => t*tick.strike*(-risk_free_rate*t).exp()*g.distribution(d2),
+			OptionType::Put => - t*tick.strike*(-risk_free_rate*t).exp()*g.distribution(-d2)
+
+		}
+
+	}
+
+	fn vega(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		let (d1, _) = <Tick as EuropianGreeks>::get_d(tick, &risk_free_rate, &initial_price, &t);
+		let t = tick.get_expiry(t);
+
+		tick.strike * t.sqrt() * (-0.5 * (d1 * d1)).exp() / ((2. * FloatType::from(std::f64::consts::PI)).sqrt())
+	}
+	
 }
 trait AmericanGreeks{
 
 	fn get_d(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> (FloatType, FloatType);
 	fn delta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn gamma(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn theta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn rho(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+	fn vega(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
 }
 impl AmericanGreeks for Tick{
 	fn get_d(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> (FloatType, FloatType) {
@@ -84,10 +135,32 @@ impl AmericanGreeks for Tick{
 		// TODO
 		0.0
 	}
+	fn gamma(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		// TODO
+		0.0
+	}
+	fn theta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		// TODO
+		0.0
+	}
+	fn rho(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		// TODO
+		0.0
+	}
+
+	fn vega(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType {
+		// TODO
+		0.0
+	}
+
 }
 trait Greeks{
 	fn get_d(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> (FloatType, FloatType);
 	fn delta(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType;
+	fn gamma(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType;
+	fn theta(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType;
+	fn rho(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType;
+	fn vega(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType;
 	
 }
 
@@ -104,7 +177,34 @@ impl Greeks for Tick{
 			OptionStyle::Europian => <Tick as EuropianGreeks>::delta(self, &risk_free_rate, &initial_price, &t),
 			OptionStyle::American => <Tick as AmericanGreeks>::delta(self, &risk_free_rate, &initial_price, &t),
 		}
-}
+	}
+
+	fn gamma(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType {
+		match option_style{
+			OptionStyle::Europian => <Tick as EuropianGreeks>::gamma(self, &risk_free_rate, &initial_price, &t),
+			OptionStyle::American => <Tick as AmericanGreeks>::gamma(self, &risk_free_rate, &initial_price, &t),
+		}
+	}
+	fn theta(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType {
+		match option_style{
+			OptionStyle::Europian => <Tick as EuropianGreeks>::theta(self, &risk_free_rate, &initial_price, &t),
+			OptionStyle::American => <Tick as AmericanGreeks>::theta(self, &risk_free_rate, &initial_price, &t),
+		}
+	}
+	fn rho(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType {
+		match option_style{
+			OptionStyle::Europian => <Tick as EuropianGreeks>::rho(self, &risk_free_rate, &initial_price, &t),
+			OptionStyle::American => <Tick as AmericanGreeks>::rho(self, &risk_free_rate, &initial_price, &t),
+		}
+	}
+	fn vega(&self, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType, option_style:&OptionStyle) -> FloatType {
+		match option_style{
+			OptionStyle::Europian => <Tick as EuropianGreeks>::vega(self, &risk_free_rate, &initial_price, &t),
+			OptionStyle::American => <Tick as AmericanGreeks>::vega(self, &risk_free_rate, &initial_price, &t),
+		}
+	}
+
+
 }
 
 
@@ -118,10 +218,6 @@ fn main() {
 	};
 	dbg!(tick.delta(&0.001, &100.0, &1609439200.0, &OptionStyle::Europian));
 
-	// let mut option = Option::new(OptionStyle::Europian);
-	// option.add_tick(tick);
-	// dbg!(option.delta_list());
-	
 	
 
 }
