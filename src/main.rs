@@ -57,16 +57,15 @@ impl EuropianGreeks for Tick{
 		let t = tick.get_expiry(t);
 		let d1:FloatType;
 		let d2:FloatType;
-		if t > 0.0{
-			d1 = ((&initial_price / &tick.strike).log10() + (&risk_free_rate + 0.5 * &tick.implied_volatility * &tick.implied_volatility) * &t) / (&tick.implied_volatility * &t.sqrt()) ;
+		d1 = ((&initial_price / &tick.strike).log10() + (&risk_free_rate + 0.5 * &tick.implied_volatility * &tick.implied_volatility) * &t) / (&tick.implied_volatility * &t.sqrt()) ;
 
-			d2 = d1 - &tick.implied_volatility * &t.sqrt();
+		d2 = d1 - &tick.implied_volatility * &t.sqrt();
+
+		if d1.is_nan() || d2.is_nan(){
+			(0.0, 0.0)
+		}else{
+			(d1, d2)
 		}
-		else{
-			d1 = 0.0;
-			d2 = 0.0;
-		}
-		(d1, d2)
 	}
 	
 	fn delta(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> FloatType {
