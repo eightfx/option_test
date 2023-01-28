@@ -1,4 +1,6 @@
+use probability::prelude::*;
 
+type FloatType = f64;
 enum OptionType{
 	Put,
 	Call
@@ -9,18 +11,18 @@ enum OptionStyle{
 	American
 }
 struct Tick{
-	strike: f64,
+	strike: FloatType,
 	option_type: OptionType,
-	expiry: f64,
-	open_interest: f64,
-	implied_volatility: f64,
+	expiry: FloatType,
+	open_interest: FloatType,
+	implied_volatility: FloatType,
 }
 
 struct Option{
 	data: Vec<Tick>,
 	option_style: OptionStyle,
-	risk_free_rate: f64,
-	initial_price: f64,
+	risk_free_rate: FloatType,
+	initial_price: FloatType,
 }
 
 impl Option{
@@ -37,44 +39,86 @@ impl Option{
 	}
 }
 
-trait EuropianGreeks{
-	fn delta(option:&Option) -> f64;
+impl Tick{
+	/// Normalize the difference between maturity and current time
+	///T : 10-digit timestamp
+	///t : 10-digit timestamp
+	fn get_expiry(&self, t:FloatType) -> FloatType{
+		(self.expiry - t) / 31536000.0
+	}
 }
-impl EuropianGreeks for Option{
-	fn delta(option:&Option) -> f64{
-		0.0
+
+trait EuropianGreeks{
+	fn get_d(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> (FloatType, FloatType);
+	fn delta(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> FloatType;
+}
+impl EuropianGreeks for Tick{
+	fn get_d(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> (FloatType, FloatType) {
+		let t = tick.get_expiry(t);
+		let d1:FloatType;
+		let d2:FloatType;
+		if t > 0.0{
+			d1 = ((&initial_price / &tick.strike).log10() + (&risk_free_rate + 0.5 * &tick.implied_volatility * &tick.implied_volatility) * &t) / (&tick.implied_volatility * &t.sqrt()) ;
+
+			d2 = d1 - &tick.implied_volatility * &t.sqrt();
+		}
+		else{
+			d1 = 0.0;
+			d2 = 0.0;
+		}
+		(d1, d2)
+	}
+	
+	fn delta(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> FloatType {
+		let (d1, _) = <Tick as EuropianGreeks>::get_d(tick, risk_free_rate, initial_price, t);
+		let g = Gaussian::new(0.0, 1.0);
+		g.distribution(d1)
 	}
 }
 trait AmericanGreeks{
-	fn delta(option:&Option) -> f64;
+
+	fn get_d(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> (FloatType, FloatType);
+	fn delta(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> FloatType;
 }
-impl AmericanGreeks for Option{
-	fn delta(option:&Option) -> f64{
-		1.0
+impl AmericanGreeks for Tick{
+	fn get_d(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> (FloatType, FloatType) {
+		(0.0, 0.0)
+	}
+	fn delta(tick:&Tick, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType) -> FloatType {
+		0.0
 	}
 }
 trait Greeks{
-	fn delta(&self) -> f64;
+	fn get_d(&self, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType, option_style:OptionStyle) -> (FloatType, FloatType);
+	fn delta(&self, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType, option_style:OptionStyle) -> FloatType;
+	
 }
 
-impl Greeks for Option{
-	fn delta(&self) -> f64 {
-		match self.option_style{
-			OptionStyle::Europian => <Option as EuropianGreeks>::delta(self),
-			OptionStyle::American => <Option as AmericanGreeks>::delta(self),
+impl Greeks for Tick{
+	fn get_d(&self, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType, option_style:OptionStyle) -> (FloatType, FloatType) {
+		match option_style{
+			OptionStyle::Europian => <Tick as EuropianGreeks>::get_d(self, risk_free_rate, initial_price, t),
+			OptionStyle::American => <Tick as AmericanGreeks>::get_d(self, risk_free_rate, initial_price, t),
 		}
 	}
+
+	fn delta(&self, risk_free_rate:FloatType, initial_price:FloatType, t:FloatType, option_style:OptionStyle) -> FloatType {
+		match option_style{
+			OptionStyle::Europian => <Tick as EuropianGreeks>::delta(self, risk_free_rate, initial_price, t),
+			OptionStyle::American => <Tick as AmericanGreeks>::delta(self, risk_free_rate, initial_price, t),
+		}
+}
 }
 
+
 fn main() {
-	let mut option = Option::new(OptionStyle::American);
-	option.add_tick(Tick{
+	let tick = Tick{
 		strike: 100.0,
 		option_type: OptionType::Call,
-		expiry: 1.0,
-		open_interest: 100.0,
-		implied_volatility: 0.1,
-	});
+		expiry: 1609459200.0,
+		open_interest: 0.0,
+		implied_volatility: 0.2,
+	};
+	dbg!(tick.delta(0.001, 100.0, 1609439200.0, OptionStyle::Europian));
 
-	dbg!(option.delta());
 }
