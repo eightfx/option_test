@@ -2,15 +2,12 @@
 name = "option"
 version = "0.1.0"
 edition = "2021"
+authors = ["eight"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
 probability = "0.20.3"
 assert_float_eq = "1.1.3"
+katexit = "0.1.4"
 
-[package.metadata.docs.rs]
-rustdoc-args = [
-    "--html-in-header",
-    "katex.html",
-]
