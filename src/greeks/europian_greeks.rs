@@ -2,11 +2,57 @@ use probability::prelude::*;
 use crate::*;
 
 pub trait EuropianGreeks{
+	/// Returns the d1 and d2 values for the given tick
+	/// # Formula
+	/// ```math
+	/// 	d_1 = \frac{\log{(\frac{S_t}{T})} + (r - g + \frac{\sigma^2}{2})(T-t)}{\sigma \sqrt{T-t}}
+	/// ```
+	/// ```math
+	/// 	d_2 = \frac{\log{(\frac{S_t}{T})} + (r - g - \frac{\sigma^2}{2})(T-t)}{\sigma \sqrt{T-t}}
+	/// ```
 	fn get_d(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> (FloatType, FloatType);
+
+	/// Returns the delta of the option
+	/// # Formula
+	/// ```math
+	/// 	\Delta_c = N(d_1)
+	/// ```
+	/// ```math
+	/// 	\Delta_p = N(d_1) - 1
+	/// ```
 	fn delta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+
+	/// Returns the gamma of the option
+	/// # Formula
+	/// ```math
+	/// 	\Gamma = \frac{1}{\sigma S_t \sqrt{T-t}} \frac{1}{\sqrt{2\pi}} e^{-\frac{d_1^2}{2}}
+	/// ```
 	fn gamma(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+
+	/// Returns the theta of the option
+	/// # Formula
+	/// ```math
+	/// 	\Theta_c = -r K e^{-r(T-t)} N(d_2) - \frac{\sigma S_t}{2 \sqrt{T-t}} \frac{1}{\sqrt{2\pi}} e^{-\frac{d_1^2}{2}}
+	/// ```
+	/// ```math
+	/// 	\Theta_p = r K e^{-r(T-t)} (N(-d_2)) - \frac{\sigma S_t}{2 \sqrt{T-t}} \frac{1}{\sqrt{2\pi}} e^{-\frac{d_1^2}{2}}
+	/// ```
 	fn theta(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+
+	/// Returns the rho of the option
+	/// # Formula
+	/// ```math
+	/// 	\Rho_c = (T-t) K e^{-r(T-t)} N(d_2)
+	/// ```
+	/// ```math
+	/// 	\Rho_p = -(T-t) K e^{-r(T-t)} N(-d_2)
+	/// ```
 	fn rho(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
+
+	/// Returns the vega of the option
+	/// # Formula
+	/// ```math
+	/// 	\Vega = S_t \sqrt{T-t} \frac{1}{\sqrt{2\pi}} e^{-\frac{d_1^2}{2}}
 	fn vega(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
 }
 impl EuropianGreeks for Tick{
