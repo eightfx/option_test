@@ -42,17 +42,18 @@ pub trait EuropianGreeks{
 	/// Returns the rho of the option
 	/// # Formula
 	/// ```math
-	/// 	\Rho_c = (T-t) K e^{-r(T-t)} N(d_2)
+	/// 	\rho_c = (T-t) K e^{-r(T-t)} N(d_2)
 	/// ```
 	/// ```math
-	/// 	\Rho_p = -(T-t) K e^{-r(T-t)} N(-d_2)
+	/// 	\rho_p = -(T-t) K e^{-r(T-t)} N(-d_2)
 	/// ```
 	fn rho(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
 
 	/// Returns the vega of the option
 	/// # Formula
 	/// ```math
-	/// 	\Vega = S_t \sqrt{T-t} \frac{1}{\sqrt{2\pi}} e^{-\frac{d_1^2}{2}}
+	/// 	\kappa = S_t \sqrt{T-t} \frac{1}{\sqrt{2\pi}} e^{-\frac{d_1^2}{2}}
+	/// ```
 	fn vega(tick:&Tick, risk_free_rate:&FloatType, initial_price:&FloatType, t:&FloatType) -> FloatType;
 }
 impl EuropianGreeks for Tick{
