@@ -15,6 +15,7 @@ pub struct Tick{
 	pub expiry: FloatType,
 	pub open_interest: FloatType,
 	pub implied_volatility: FloatType,
+	pub premium: FloatType,
 }
 
 pub struct Option{
@@ -25,7 +26,7 @@ pub struct Option{
 }
 
 impl Option{
-	fn new(option_style: OptionStyle) -> Option{
+	pub fn new(option_style: OptionStyle) -> Option{
 		Option{
 			data: Vec::new(),
 			option_style: option_style,
@@ -33,7 +34,7 @@ impl Option{
 			initial_price: 0.0,
 		}
 	}
-	fn add_tick(&mut self, tick: Tick){
+	pub fn add_tick(&mut self, tick: Tick){
 		self.data.push(tick);
 	}
 }
