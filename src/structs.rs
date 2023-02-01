@@ -6,7 +6,7 @@ pub enum OptionType{
 }
 
 pub enum OptionStyle{
-	Europian,
+	European,
 	American
 }
 pub struct Tick{
