@@ -77,7 +77,9 @@ impl BlackScholes for OptionTick{
 				let max_iter = 1000;
 				let mut iter = 0;
 				while diff.abs() > epsilon && iter < max_iter {
-					let d1 = self.d1();
+
+					let mut option_with_iv = OptionTick::builder().asset_price(self.asset_price).strike(self.strike).risk_free_rate(self.risk_free_rate).dividend_yield(self.dividend_yield).expiry(self.expiry).implied_volatility(sigma).option_type(self.option_type.clone()).build();
+					let d1 = option_with_iv.d1();
 					let g = Gaussian::new(0.0, 1.0);
 					let vega = self.asset_price * self.expiry.sqrt() * g.distribution(d1);
 					sigma = sigma - diff / vega;
