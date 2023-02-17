@@ -1,3 +1,4 @@
+use typed_builder::TypedBuilder;
 
 pub type FloatType = f64;
 pub enum OptionType{
@@ -9,13 +10,23 @@ pub enum OptionStyle{
 	European,
 	American
 }
-pub struct Tick{
+
+
+#[builder(field_defaults(default=FloatType::NAN, setter(!strip_option)))]
+pub struct OptionTick{
 	pub strike: FloatType,
-	pub option_type: OptionType,
 	pub expiry: FloatType,
 	pub open_interest: FloatType,
 	pub implied_volatility: FloatType,
 	pub premium: FloatType,
+	pub initial_price: FloatType,
+	#[builder(default=0.001)]
+	pub risk_free_rate: FloatType,
+
+	#[builder(default=OptionType::Call)]
+	pub option_type: OptionType,
+	#[builder(default=OptionStyle::European)]
+	pub option_style: OptionStyle,
 }
 
 pub struct Option{
