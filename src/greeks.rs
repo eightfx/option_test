@@ -6,7 +6,8 @@
 //! use crate::structs::*;
 //! use crate::greeks::Greeks;
 //! fn main() {
-//! let option = OptionTick::builder().strike(250.).asset_price(100.).risk_free_rate(0.001).implied_volatility(10.).expiry(30./365.).option_type(OptionType::Call).build();
+//! let option = OptionTick::builder().strike(250.).asset_price(100.).risk_free_rate(0.001)
+//!                    .implied_volatility(10.).expiry(30./365.).option_type(OptionType::Call).build();
 //! assert_float_relative_eq!(option.delta(), 0.8673, 0.001);
 //! assert_float_relative_eq!(option.gamma(), 0.0007483, 0.00001);
 //! assert_float_relative_eq!(option.theta(), -374.164, 0.001);
@@ -15,7 +16,7 @@
 //! }
 //! ```
 //! # Formula
-//! See European trait page.
+//! See EuropeanGreeks trait page.
 
 
 use probability::prelude::*;

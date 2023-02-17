@@ -1,6 +1,32 @@
+//! This trait is used to calculate each value of the BLACK SCHOLES model.
+//! # How to use
+//! ```
+//! mod structs;
+//! mod greeks;
+//! use crate::structs::*;
+//! use crate::greeks::Greeks;
+//! fn main() {
+//! let option = OptionTick::builder().strike(250.).asset_price(100.).risk_free_rate(0.001)
+//!                   .implied_volatility(10.).expiry(30./365.).option_type(OptionType::Call).build();
+//! dbg!(option.theoretical_price());
+//! }
+//! ```
+//! # Formula
+//! See BlackScholes trait page.
+
+
 use probability::prelude::*;
 use crate::structs::{FloatType,OptionTick, OptionType};
 
+#[cfg_attr(doc, katexit::katexit)]
+/// This is the trait for calculating European Greeks.
+/// ## Variables
+/// * S_t: spot price of asset
+/// * K: strike price
+/// * $\tau$: Remaining time to maturity (normalized in years, e.g. $\tau$ = 2 means 2years)
+/// * r: risk free rate
+/// * q: dividend yield
+/// * $\sigma$: implied volatility
 pub trait BlackScholes{
 	/// Returns the d1 
 	/// # Formula
@@ -29,7 +55,17 @@ pub trait BlackScholes{
 	/// $$
 	fn Phi(x:&FloatType) ->FloatType;
 
+	/// Returns the theoretical price of the option: calc iv -> premium
+	/// # Formula
+	/// $$
+	/// 	C(S_t,K,\tau,r,q,\sigma) = S_t e^{-q\tau} \Phi(d_1) - K e^{-r\tau} \Phi(d_2)
+	/// $$
+	/// $$
+	/// 	P(S_t,K,\tau,r,q,\sigma) = K e^{-r\tau} \Phi(-d_2) - S_t e^{-q\tau} \Phi(-d_1)
+	/// $$
 	fn theoretical_price(&self) -> FloatType;
+
+	/// Returns the iv of the option: calc premium -> iv
 	fn get_implied_volatility(&self, sigma_est:FloatType, epsilon:FloatType)->FloatType;
 	fn _difference(&self, implied_volatility:FloatType)->FloatType;
 	
