@@ -168,7 +168,7 @@ pub trait EuropeanGreeks: black_scholes::BlackScholes{
 impl EuropeanGreeks for structs::OptionTick{
 
 	fn delta(&self) -> FloatType {
-		
+	
 		let d1 = self.d1();
 		match self.option_type {
 			OptionType::Call => (-self.dividend_yield * self.risk_free_rate).exp() * Self::Phi(&d1),
@@ -179,18 +179,29 @@ impl EuropeanGreeks for structs::OptionTick{
 	fn gamma(&self) -> FloatType {
 
 		let d1 = self.d1();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
 
-		(-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) / (self.asset_price * self.implied_volatility * self.expiry.sqrt())
+		(-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) / (self.asset_price * implied_volatility * self.expiry.sqrt())
 	}
 
 	fn theta(&self) -> FloatType {
 
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
+
 
 		match self.option_type{
-			OptionType::Call => -(-self.dividend_yield * self.risk_free_rate).exp() * self.asset_price * Self::phi(&d1) * self.implied_volatility / (2.0 * self.expiry.sqrt()) - self.risk_free_rate * self.strike * (-self.risk_free_rate * self.expiry).exp() * Self::Phi(&d2) + self.dividend_yield * self.asset_price * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&d1),
-			OptionType::Put => -(-self.dividend_yield * self.risk_free_rate).exp() * self.asset_price * Self::phi(&d1) * self.implied_volatility / (2.0 * self.expiry.sqrt()) + self.risk_free_rate * self.strike * (-self.risk_free_rate * self.expiry).exp() * Self::Phi(&(-d2)) - self.dividend_yield * self.asset_price * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&(-d1))
+			OptionType::Call => -(-self.dividend_yield * self.risk_free_rate).exp() * self.asset_price * Self::phi(&d1) * implied_volatility / (2.0 * self.expiry.sqrt()) - self.risk_free_rate * self.strike * (-self.risk_free_rate * self.expiry).exp() * Self::Phi(&d2) + self.dividend_yield * self.asset_price * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&d1),
+			OptionType::Put => -(-self.dividend_yield * self.risk_free_rate).exp() * self.asset_price * Self::phi(&d1) * implied_volatility / (2.0 * self.expiry.sqrt()) + self.risk_free_rate * self.strike * (-self.risk_free_rate * self.expiry).exp() * Self::Phi(&(-d2)) - self.dividend_yield * self.asset_price * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&(-d1))
 		}
 
 	}
@@ -216,68 +227,116 @@ impl EuropeanGreeks for structs::OptionTick{
 	fn veta(&self) -> FloatType {
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
 
-		-self.asset_price * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&d1) * self.expiry.sqrt() * (self.dividend_yield + (self.risk_free_rate - self.dividend_yield)*d1/(self.implied_volatility * self.expiry.sqrt()) - (1.+d1*d2) / (2.*self.expiry))
+
+		-self.asset_price * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&d1) * self.expiry.sqrt() * (self.dividend_yield + (self.risk_free_rate - self.dividend_yield)*d1/(implied_volatility * self.expiry.sqrt()) - (1.+d1*d2) / (2.*self.expiry))
 	}
 
 	fn vanna(&self) -> FloatType {
 
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
 
-		-(-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) * d2 / self.implied_volatility
+
+		-(-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) * d2 / implied_volatility
 	}
 
 	fn charm(&self) -> FloatType {
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
+
 
 		match self.option_type{
-			OptionType::Call => self.dividend_yield * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&d1) - (-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) * (2.*(self.risk_free_rate - self.dividend_yield)*self.expiry - d2 * self.implied_volatility * self.expiry.sqrt()) / (2. * self.expiry * self.implied_volatility * self.expiry.sqrt()),
-			OptionType::Put => -self.dividend_yield * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&(-d1)) - (-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&(-d1)) * (2.*(self.risk_free_rate - self.dividend_yield)*self.expiry - d2 * self.implied_volatility * self.expiry.sqrt()) / (2. * self.expiry * self.implied_volatility * self.expiry.sqrt())
+			OptionType::Call => self.dividend_yield * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&d1) - (-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) * (2.*(self.risk_free_rate - self.dividend_yield)*self.expiry - d2 * implied_volatility * self.expiry.sqrt()) / (2. * self.expiry * implied_volatility * self.expiry.sqrt()),
+			OptionType::Put => -self.dividend_yield * (-self.dividend_yield * self.expiry).exp() * Self::Phi(&(-d1)) - (-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&(-d1)) * (2.*(self.risk_free_rate - self.dividend_yield)*self.expiry - d2 * implied_volatility * self.expiry.sqrt()) / (2. * self.expiry * implied_volatility * self.expiry.sqrt())
 		}
 	}
 
 	fn vomma(&self) -> FloatType {
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
 
-		(-self.dividend_yield * self.risk_free_rate).exp() * self.asset_price * Self::phi(&d1) * self.expiry.sqrt() * d1 * d2 / self.implied_volatility
+
+		(-self.dividend_yield * self.risk_free_rate).exp() * self.asset_price * Self::phi(&d1) * self.expiry.sqrt() * d1 * d2 / implied_volatility
 	}
 
 	fn speed(&self) -> FloatType {
 		let d1 = self.d1();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
+
 
 		let gamma = self.gamma();
 
-		- gamma / self.asset_price * (d1 / (self.implied_volatility * self.expiry.sqrt()) + 1.)
+		- gamma / self.asset_price * (d1 / (implied_volatility * self.expiry.sqrt()) + 1.)
 	}
 
 	fn zomma(&self) -> FloatType {
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
+
 
 		let gamma = self.gamma();
 
-		gamma * (d1*d2 - 1.) / self.implied_volatility
+		gamma * (d1*d2 - 1.) / implied_volatility
 	}
 
 	fn color(&self) -> FloatType {
 
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
 
 
-		- (-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) / (2. * self.asset_price * self.implied_volatility * self.expiry * self.expiry.sqrt()) * (2. * self.risk_free_rate * self.expiry + 1. + d1 * (2. * (self.risk_free_rate - self.dividend_yield) * self.expiry - d2 * self.implied_volatility * self.expiry.sqrt()) / (self.implied_volatility * self.expiry.sqrt()))
+
+		- (-self.dividend_yield * self.risk_free_rate).exp() * Self::phi(&d1) / (2. * self.asset_price * implied_volatility * self.expiry * self.expiry.sqrt()) * (2. * self.risk_free_rate * self.expiry + 1. + d1 * (2. * (self.risk_free_rate - self.dividend_yield) * self.expiry - d2 * implied_volatility * self.expiry.sqrt()) / (implied_volatility * self.expiry.sqrt()))
 	}
 
 	fn ultima(&self) -> FloatType {
 		let d1 = self.d1();
 		let d2 = self.d2();
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
+
 
 		let vega = self.vega();
 
-		- vega / (self.implied_volatility * self.implied_volatility) * (d1*d2*(1. - d1*d2) + d1*d1 + d2*d2)
+		- vega / (implied_volatility * implied_volatility) * (d1*d2*(1. - d1*d2) + d1*d1 + d2*d2)
 
 	}
 
@@ -304,10 +363,16 @@ impl EuropeanGreeks for structs::OptionTick{
 	}
 
 	fn dual_gamma(&self) -> FloatType {
+		let implied_volatility :FloatType;
+		match self.option_value{
+			OptionValue::Price(_) => {implied_volatility = FloatType::NAN;},
+			OptionValue::ImpliedVolatility(iv) =>{implied_volatility = iv;}
+		}
+
 		
 		let d2 = self.d2();
 
-		(-self.risk_free_rate * self.expiry).exp() * Self::phi(&d2) / (self.strike * self.implied_volatility * self.expiry.sqrt())
+		(-self.risk_free_rate * self.expiry).exp() * Self::phi(&d2) / (self.strike * implied_volatility * self.expiry.sqrt())
 
 	}
 	
