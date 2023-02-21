@@ -100,7 +100,7 @@ pub trait BlackScholes{
 	///
 	/// * This function assumes that self has valid values for symbol, strike, expiry and option_type fields.
 	/// * This function uses Gaussian::new(0.0, 1.0) to create a standard normal distribution for calculating vega (the derivative of price with respect to volatility).
-	fn get_implied_volatility(&self, sigma_est:FloatType, epsilon:FloatType)->Self;
+	fn get_implied_volatility(&self)->Self;
 	fn _difference(option:&Self, implied_volatility:FloatType)->FloatType;
 	
 }
@@ -152,7 +152,9 @@ impl BlackScholes for OptionTick{
 		}
 	}
 
-	fn get_implied_volatility(&self, sigma_est:FloatType, epsilon:FloatType) -> Self{
+	fn get_implied_volatility(&self) -> Self{
+		let sigma_est = 50.;
+		let epsilon = 0.0001;
 
 		match self.option_value{
 
@@ -164,7 +166,7 @@ impl BlackScholes for OptionTick{
 				let new_sigma = match self.option_type{
 					OptionType::Call =>{
 						
-						let max_iter = 1000;
+						let max_iter = 5000;
 						let mut iter = 0;
 						while diff.abs() > epsilon && iter < max_iter {
 
