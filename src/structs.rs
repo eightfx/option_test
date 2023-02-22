@@ -1,6 +1,6 @@
 use crate::greeks::EuropeanGreeks;
 use crate::black_scholes::*;
-use anyhow::Result;
+use anyhow::{anyhow,Result};
 use typed_builder::TypedBuilder;
 use chrono::{DateTime, Utc};
 
@@ -87,26 +87,21 @@ impl OptionTick{
 
 }
 
-#[derive(TypedBuilder,Clone)]
-pub struct StrikeBoard{
-	pub ticks: Vec<OptionTick>,
-	
-}
+#[derive(Clone)]
+pub struct StrikeBoard(Vec<OptionTick>);
 
 impl StrikeBoard{
 	pub fn new() -> Self{
-		Self{
-			ticks: Vec::new()
-		}
+		Self(Vec::new())
 	}
 
 	pub fn push(&mut self, tick: OptionTick){
-		self.ticks.push(tick);
+		self.0.push(tick);
 	}
 	/// 	The best_bid() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and returns the OptionTick instance with the highest value for bids.
 	pub fn best_bid(&self) -> OptionTick{
 
-		let mut ticks = self.ticks.clone();
+		let ticks = self.0.clone();
 		let bid_ticks = ticks.iter().filter(|t| matches!(t.side.as_ref().unwrap(),OptionSide::Bid)).collect::<Vec<&OptionTick>>();
 		let mut best_bid = bid_ticks[0].clone();
 		for tick in bid_ticks{
@@ -119,7 +114,7 @@ impl StrikeBoard{
 
 	/// The best_ask() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and returns the OptionTick instance with the lowest value for asks.
 	pub fn best_ask(&self) -> OptionTick{
-		let mut ticks = self.ticks.clone();
+		let ticks = self.0.clone();
 		let ask_ticks = ticks.iter().filter(|t| matches!(t.side.as_ref().unwrap(),OptionSide::Ask)).collect::<Vec<&OptionTick>>();
 		let mut best_ask = ask_ticks[0].clone();
 		for tick in ask_ticks{
@@ -143,28 +138,33 @@ impl StrikeBoard{
 	
 }
 
+
+/// Trait to retrieve common information
+/// For example, since OptionChain is a set of OptionTicks with the same maturity, this trait can be used to retrieve maturity information.
+/// If it tries to retrieve information that is not common information, it returns None.
 pub trait ExtractCommonInfo{
-	fn strike(&self) -> Option<FloatType>{None}
-	fn expiry(&self) -> Option<FloatType>{None}
-	fn asset_price(&self) -> Option<FloatType>{None}
-	fn risk_free_rate(&self) -> Option<FloatType>{None}
-	fn dividend_yield(&self) -> Option<FloatType>{None}
-	fn option_type(&self) -> Option<OptionType>{None}
-	fn option_value(&self) -> Option<OptionValue>{None}
-	fn side(&self) -> Option<OptionSide>{None}
+	fn strike(&self) -> Result<FloatType>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn expiry(&self) -> Result<FloatType>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn asset_price(&self) -> Result<FloatType>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn risk_free_rate(&self) -> Result<FloatType>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn dividend_yield(&self) -> Result<FloatType>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn option_type(&self) -> Result<OptionType>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn option_value(&self) -> Result<OptionValue>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
+	fn side(&self) -> Result<OptionSide>{Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))}
 
 } 
 
 impl ExtractCommonInfo for OptionChain<OptionTick>{
-	fn asset_price(&self) -> Option<FloatType>{
-		Some(self.data[0].asset_price)
+	fn asset_price(&self) -> Result<FloatType>{
+		Ok(self.data[0].asset_price)
 	}
 	
 }
 
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, TypedBuilder)]
 pub struct OptionChain<T>{
+	#[builder(default=Vec::new())]
 	pub data : Vec<T>,
 	pub maturity: DateTime<Utc>,
 	
@@ -180,12 +180,6 @@ impl<T> OptionChain<T>{
 }
 
 impl OptionChain<OptionTick>{
-	pub fn new() -> Self{
-		Self{
-			data: Vec::new(),
-			maturity: Utc::now()
-		}
-	}
 	pub fn push(&mut self, tick: OptionTick){
 		self.data.push(tick);
 	}
@@ -200,7 +194,7 @@ impl OptionChain<OptionTick>{
 	}
 	pub fn atm(&self) -> OptionTick{
 		let asset_price = self.asset_price().unwrap();
-		let mut atm_chain = self.clone();
+		let atm_chain = self.clone();
 		// Get the OptionTick of the strike closest to the underlying asset price.
 		//If put and call are available for the same strike, call is selected.
 		let mut atm_tick = atm_chain.data[0].clone();
@@ -232,8 +226,8 @@ impl OptionChain<OptionTick>{
 	}
 
 	pub fn call_25delta(&self) -> OptionTick{
-		let mut call_chain = self.call();
-		let mut delta_chain = call_chain.map(OptionTick::delta);
+		let call_chain = self.call();
+		let delta_chain = call_chain.map(OptionTick::delta);
 
 		// Get the index with delta closest to 0.25
 		let mut index = 0;
@@ -249,8 +243,8 @@ impl OptionChain<OptionTick>{
 	}
 
 	pub fn call_50delta(&self) -> OptionTick{
-		let mut call_chain = self.call();
-		let mut delta_chain = call_chain.map(OptionTick::delta);
+		let call_chain = self.call();
+		let delta_chain = call_chain.map(OptionTick::delta);
 
 		// Get the index with delta closest to 0.5
 		let mut index = 0;
@@ -266,8 +260,8 @@ impl OptionChain<OptionTick>{
 	}
 
 	pub fn put_25delta(&self) -> OptionTick{
-		let mut put_chain = self.put();
-		let mut delta_chain = put_chain.map(OptionTick::delta);
+		let put_chain = self.put();
+		let delta_chain = put_chain.map(OptionTick::delta);
 
 		// Get the index with delta closest to -0.25
 		let mut index = 0;
@@ -283,8 +277,8 @@ impl OptionChain<OptionTick>{
 	}
 
 	pub fn put_50delta(&self) -> OptionTick{
-		let mut put_chain = self.put();
-		let mut delta_chain = put_chain.map(OptionTick::delta);
+		let put_chain = self.put();
+		let delta_chain = put_chain.map(OptionTick::delta);
 
 		// Get the index with delta closest to -0.5
 		let mut index = 0;
@@ -305,75 +299,4 @@ impl OptionChain<OptionTick>{
 pub struct OptionBoard<T>{
 	pub data: Vec<OptionChain<T>>
 }
-
-#[derive(Clone, Debug)]
-pub struct TimeSeries<T>(pub Vec<T>);
-
-
-impl<T> TimeSeries<T>
-// where T:Clone
-{
-	pub fn new() -> TimeSeries<T>{
-		TimeSeries(Vec::new())
-	}
-	pub fn push(&mut self, value: T){
-		self.0.push(value);
-	}
-
-	/// Given a function f: T -> U that converts data to indicator, give a function map: TimeSeries<T> -> TimeSeries<U> that converts time series data to time series indices
-	pub fn map<U>(&self, f : impl Fn(&T) -> U) -> TimeSeries<U>{
-		TimeSeries(self.0.iter().map(f).collect())
-	}
-	
-}
-
-impl<T> TimeSeries<Result<T>>{
-	pub fn unwrap(self) -> TimeSeries<T>{
-		TimeSeries(self.0.into_iter().map(|x| x.unwrap()).collect())
-	}
-	
-}
-
-impl<T> std::ops::Add for TimeSeries<T>
-where for<'a> &'a T:std::ops::Add<Output=T>
-{
-	type Output = TimeSeries<T>;
-	fn add(self, other:Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a+b).collect())
-	}
-	
-}
-
-impl<T> std::ops::Sub for TimeSeries<T>
-where for<'a> &'a T:std::ops::Sub<Output=T>
-{
-	type Output = TimeSeries<T>;
-	fn sub(self, other:Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a-b).collect())
-	}
-	
-}
-
-impl<T> std::ops::Mul for TimeSeries<T>
-where for<'a> &'a T:std::ops::Mul<Output=T>
-{
-	type Output = TimeSeries<T>;
-	fn mul(self, other:Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a*b).collect())
-	}
-	
-}
-
-impl<T> std::ops::Div for TimeSeries<T>
-where for<'a> &'a T:std::ops::Div<Output=T>
-{
-	type Output = TimeSeries<T>;
-	fn div(self, other:Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a/b).collect())
-	}
-	
-}
-
-
-
 

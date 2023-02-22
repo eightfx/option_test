@@ -53,6 +53,7 @@ pub trait BlackScholes{
 	/// $$
 	/// 	\Phi(x) =  \frac{1}{\sqrt{2\pi}}\int_{-\infty}^{x}e^{-\frac{t^2}{2}}dt
 	/// $$
+	#[allow(non_snake_case)]
 	fn Phi(x:&FloatType) ->FloatType;
 
 	/// Returns a new OptionTick instance with the theoretical price calculated from the implied volatility using the Black-Scholes formula.
