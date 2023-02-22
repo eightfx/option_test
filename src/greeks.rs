@@ -19,7 +19,7 @@
 //! See EuropeanGreeks trait page.
 
 
-use crate::*;
+use crate::structs::*;
 use crate::black_scholes::*;
 
 #[cfg_attr(doc, katexit::katexit)]
@@ -31,7 +31,7 @@ use crate::black_scholes::*;
 /// * r: risk free rate
 /// * q: dividend yield
 /// * $\sigma$: implied volatility
-pub trait EuropeanGreeks: black_scholes::BlackScholes{
+pub trait EuropeanGreeks: BlackScholes{
 
 	
 	/// Returns the delta of the option
@@ -164,7 +164,7 @@ pub trait EuropeanGreeks: black_scholes::BlackScholes{
 
 }
 
-impl EuropeanGreeks for structs::OptionTick{
+impl EuropeanGreeks for OptionTick{
 
 	fn delta(&self) -> FloatType {
 	
