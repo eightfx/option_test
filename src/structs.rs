@@ -117,6 +117,8 @@ impl StrikeBoard{
 				best_bid = tick.clone();
 			}
 		}
+
+		best_bid.side = None;
 		Ok(best_bid)
 	}
 
@@ -133,6 +135,8 @@ impl StrikeBoard{
 				best_ask = tick.clone();
 			}
 		}
+
+		best_ask.side = None;
 		Ok(best_ask)
 	}
 
@@ -146,6 +150,7 @@ impl StrikeBoard{
 				let mut tick = bid.clone();
 				let mid = (bid.get_value() + ask.get_value())/2.;
 				tick.option_value = OptionValue::Price(mid);
+				tick.side = None;
 				tick
 			}
 			(Err(_), Ok(ask)) => {
@@ -161,7 +166,34 @@ impl StrikeBoard{
 		Ok(mid_tick)
 			
 	}
+
+	pub fn mid_weighted(&self) -> Result<OptionTick>{
+		let best_bid = self.best_bid();
+		let best_ask = self.best_ask();
+
+		let mid_tick =  match (best_bid, best_ask){
+			(Ok(bid), Ok(ask)) => {
+				let mut tick = bid.clone();
+				let mid = (bid.get_value() * bid.additional_data.as_ref().unwrap().volume.unwrap() + ask.get_value() * ask.additional_data.as_ref().unwrap().volume.unwrap())/(bid.additional_data.as_ref().unwrap().volume.unwrap() + ask.additional_data.as_ref().unwrap().volume.unwrap());
+				tick.option_value = OptionValue::Price(mid);
+				tick.side = None;
+				tick
+			}
+			(Err(_), Ok(ask)) => {
+				ask
+			}
+			(Ok(bid), Err(_)) => {
+				bid
+			}
+			(Err(_), Err(_)) => {
+				return Err(anyhow!("No bid or ask ticks in strikeboard"));
+			}
+		};
+		Ok(mid_tick)
+			
+		
 	
+	}
 }
 
 /// This trait automatically builds OptionChain, OptionBoard, StrikeBoard, etc. by simply entering an OptionTick.
@@ -178,6 +210,9 @@ impl CRUD for StrikeBoard{
 		Self(Vec::new())
 	}
 	fn upsert(&mut self, tick: OptionTick) {
+		if tick.get_value() < FloatType::EPSILON{
+			return self.delete(tick);
+		}
 		let mut ticks = self.0.clone();
 		let mut index = 0;
 		let mut found = false;
@@ -215,7 +250,7 @@ impl CRUD for StrikeBoard{
 	}
 
 
-	
+
 }
 
 impl CRUD for OptionChain<StrikeBoard>{
@@ -396,17 +431,29 @@ impl OptionChain<OptionTick>{
 	}
 	pub fn atm(&self) -> OptionTick{
 		let asset_price = self.asset_price().unwrap();
-		let atm_chain = self.clone();
-		// Get the OptionTick of the strike closest to the underlying asset price.
-		//If put and call are available for the same strike, call is selected.
-		let mut atm_tick = atm_chain.0[0].clone();
-		for tick in atm_chain.0{
-			if (tick.strike - asset_price).abs() < (atm_tick.strike - asset_price).abs(){
-				atm_tick = tick.clone();
-			}
-		}
-		atm_tick
+		let atm_chain = self.clone().otm();
+		// Perform linear interpolation of put and call
+		let put = atm_chain.put();
+		let call = atm_chain.call();
+		// Get the otm put and call closest to asset_price
+		let best_put:&OptionTick = put.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+		let best_call :&OptionTick= call.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+		
+		// linear interpolation
+		let strike = asset_price;
+		let value = best_put.get_value() + (best_call.get_value() - best_put.get_value()) * (asset_price - best_put.strike) / (best_call.strike - best_put.strike);
 
+		let option_value:OptionValue = match best_put.option_value{
+			OptionValue::Price(_) => OptionValue::Price(value),
+			OptionValue::ImpliedVolatility(_) => OptionValue::ImpliedVolatility(value),
+		};
+
+		let mut tick: OptionTick = best_put.to_owned();
+
+		tick.strike = strike;
+		tick.option_value = option_value;
+		tick
+			
 	}
 
 	pub fn call(&self) -> Self{
