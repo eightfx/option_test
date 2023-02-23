@@ -108,19 +108,21 @@ pub trait BlackScholes{
 
 impl BlackScholes for OptionTick{
 	fn d1(&self) -> FloatType {
+		let tau = self.tau();
 		match self.option_value{
 			OptionValue::Price(_) => {FloatType::NAN},
 			OptionValue::ImpliedVolatility(implied_volatility) =>{
-				((self.asset_price / self.strike).log(std::f64::consts::E) + (self.risk_free_rate  - self.dividend_yield + 0.5 * implied_volatility * implied_volatility) * self.expiry) / (implied_volatility * self.expiry.sqrt() )
+				((self.asset_price / self.strike).log(std::f64::consts::E) + (self.risk_free_rate  - self.dividend_yield + 0.5 * implied_volatility * implied_volatility) * tau) / (implied_volatility * tau.sqrt() )
 			}
 		}
 
 	}
 	fn d2(&self) -> FloatType {
+		let tau = self.tau();
 		match self.option_value{
 			OptionValue::Price(_) => {FloatType::NAN},
 			OptionValue::ImpliedVolatility(implied_volatility) =>{
-				((self.asset_price / self.strike).log(std::f64::consts::E) + (self.risk_free_rate - self.dividend_yield  - 0.5 * implied_volatility * implied_volatility) * self.expiry) / (implied_volatility * self.expiry.sqrt())
+				((self.asset_price / self.strike).log(std::f64::consts::E) + (self.risk_free_rate - self.dividend_yield  - 0.5 * implied_volatility * implied_volatility) * tau) / (implied_volatility * tau.sqrt())
 			}
 		}
 
@@ -141,10 +143,11 @@ impl BlackScholes for OptionTick{
 			OptionValue::ImpliedVolatility(_) =>{
 				let d1 = self.d1();
 				let d2 = self.d2();
+				let tau = self.tau();
 
 				let price = match self.option_type {
-					OptionType::Call => (-self.dividend_yield * self.expiry).exp() * self.asset_price * Self::Phi(&d1) - self.strike * (-self.risk_free_rate * self.expiry).exp() * Self::Phi(&d2),
-					OptionType::Put => self.strike * (-self.risk_free_rate * self.expiry).exp() * Self::Phi(&(-d2)) - (-self.dividend_yield * self.expiry).exp() * self.asset_price * Self::Phi(&(-d1)),
+					OptionType::Call => (-self.dividend_yield * tau).exp() * self.asset_price * Self::Phi(&d1) - self.strike * (-self.risk_free_rate * tau).exp() * Self::Phi(&d2),
+					OptionType::Put => self.strike * (-self.risk_free_rate * tau).exp() * Self::Phi(&(-d2)) - (-self.dividend_yield * tau).exp() * self.asset_price * Self::Phi(&(-d1)),
 				};
 				let mut new_option = self.clone();
 				new_option.option_value = OptionValue::Price(price);
@@ -156,6 +159,7 @@ impl BlackScholes for OptionTick{
 	fn get_implied_volatility(&self) -> Self{
 		let sigma_est = 50.;
 		let epsilon = 0.0001;
+		let tau = self.tau();
 
 		match self.option_value{
 
@@ -175,7 +179,7 @@ impl BlackScholes for OptionTick{
 							option_with_iv.option_value = OptionValue::ImpliedVolatility(sigma);
 							let d1 = option_with_iv.d1();
 							let g = Gaussian::new(0.0, 1.0);
-							let vega = self.asset_price * self.expiry.sqrt() * g.distribution(d1);
+							let vega = self.asset_price * tau.sqrt() * g.distribution(d1);
 							sigma = sigma - diff / vega;
 							diff = Self::_difference(&option, sigma.clone());
 							iter += 1;

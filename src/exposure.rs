@@ -34,7 +34,7 @@ macro_rules! exposure_impl{
 				paste!{
 					fn [<$greeks_name _exposure>](&self) -> Result<FloatType> {
 						let mut sum:FloatType = 0.;
-						for data in self.data.iter(){
+						for data in self.0.iter(){
 							let option_tick = data.to_owned();
 							let additional_data = option_tick.additional_data.clone();
 
