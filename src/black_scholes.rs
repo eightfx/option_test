@@ -157,7 +157,7 @@ impl BlackScholes for OptionTick{
 	}
 
 	fn get_implied_volatility(&self) -> Self{
-		let sigma_est = 50.;
+		let sigma_est = 10.;
 		let epsilon = 0.0001;
 		let tau = self.tau();
 
@@ -167,31 +167,23 @@ impl BlackScholes for OptionTick{
 				let mut option = self.clone();
 				let mut sigma = sigma_est;
 				let mut diff = Self::_difference(&option,sigma);
+				let max_iter = 5000;
+				let mut iter = 0;
 
-				let new_sigma = match self.option_type{
-					OptionType::Call =>{
-						
-						let max_iter = 5000;
-						let mut iter = 0;
-						while diff.abs() > epsilon && iter < max_iter {
+					
+				while diff.abs() > epsilon && iter < max_iter {
 
-							let mut option_with_iv = option.clone();
-							option_with_iv.option_value = OptionValue::ImpliedVolatility(sigma);
-							let d1 = option_with_iv.d1();
-							let g = Gaussian::new(0.0, 1.0);
-							let vega = self.asset_price * tau.sqrt() * g.distribution(d1);
-							sigma = sigma - diff / vega;
-							diff = Self::_difference(&option, sigma.clone());
-							iter += 1;
-						}
-						sigma
-					}
-					OptionType::Put =>{
-						// TODO
-						0.
-					}
-				};
-				option.option_value = OptionValue::ImpliedVolatility(new_sigma);
+					let mut option_with_iv = option.clone();
+					option_with_iv.option_value = OptionValue::ImpliedVolatility(sigma);
+					let d1 = option_with_iv.d1();
+					let g = Gaussian::new(0.0, 1.0);
+					let vega = self.asset_price * tau.sqrt() * g.distribution(d1);
+					sigma = sigma - diff / vega;
+					diff = Self::_difference(&option, sigma.clone());
+					iter += 1;
+				}
+				let new_sigma = sigma;
+			option.option_value = OptionValue::ImpliedVolatility(new_sigma);
 				option
 			}
 			OptionValue::ImpliedVolatility(_) =>{

@@ -429,6 +429,22 @@ impl OptionChain<OptionTick>{
 
 		otm_chain
 	}
+	// pub fn atm(&self) -> OptionTick{
+	// 	let asset_price = self.asset_price().unwrap();
+	// 	let atm_chain = self.clone();
+	// 	// Get the OptionTick of the strike closest to the underlying asset price.
+	// 	//If put and call are available for the same strike, call is selected.
+	// 	let mut atm_tick = atm_chain.0[0].clone();
+	// 	for tick in atm_chain.0{
+	// 		if (tick.strike - asset_price).abs() < (atm_tick.strike - asset_price).abs(){
+	// 			atm_tick = tick.clone();
+	// 		}
+	// 	}
+	// 	atm_tick
+
+	// }
+
+
 	pub fn atm(&self) -> OptionTick{
 		let asset_price = self.asset_price().unwrap();
 		let atm_chain = self.clone().otm();
@@ -436,8 +452,23 @@ impl OptionChain<OptionTick>{
 		let put = atm_chain.put();
 		let call = atm_chain.call();
 		// Get the otm put and call closest to asset_price
-		let best_put:&OptionTick = put.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
-		let best_call :&OptionTick= call.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+		let best_put:&OptionTick;
+		let best_call:&OptionTick;
+		if put.0.len() == 0 && call.0.len() == 0{
+			panic!("There is no put or call in the option chain.");
+		}
+		else if put.0.len() == 0{
+			best_call = call.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+			best_put = best_call;
+		}
+		else if call.0.len() == 0{
+			best_put = put.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+			best_call = best_put;
+		} else{
+			best_put = put.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+			best_call = call.0.iter().min_by(|a, b| (a.strike - asset_price).abs().partial_cmp(&(b.strike - asset_price).abs()).unwrap()).unwrap();
+			
+		}
 		
 		// linear interpolation
 		let strike = asset_price;
