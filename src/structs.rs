@@ -1,30 +1,30 @@
 use crate::greeks::EuropeanGreeks;
 use crate::black_scholes::*;
-use anyhow::{anyhow,Result};
+use anyhow::{anyhow,Result, ensure};
 use typed_builder::TypedBuilder;
 use chrono::{DateTime, Utc};
 
 pub type FloatType = f64;
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug, PartialEq)]
 pub enum OptionType{
 	Put,
 	Call
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq)]
 pub enum OptionStyle{
 	European,
 	American
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug, PartialEq)]
 pub enum OptionSide{
 	Bid,
 	Ask
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug, PartialEq)]
 pub enum OptionValue{
 	Price(FloatType),
 	ImpliedVolatility(FloatType)
@@ -87,8 +87,8 @@ impl OptionTick{
 
 }
 
-#[derive(Clone)]
-pub struct StrikeBoard(Vec<OptionTick>);
+#[derive(Clone,Debug)]
+pub struct StrikeBoard(pub Vec<OptionTick>);
 
 impl StrikeBoard{
 	pub fn new() -> Self{
@@ -99,44 +99,187 @@ impl StrikeBoard{
 		self.0.push(tick);
 	}
 	/// 	The best_bid() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and returns the OptionTick instance with the highest value for bids.
-	pub fn best_bid(&self) -> OptionTick{
+	pub fn best_bid(&self) -> Result<OptionTick>{
 
 		let ticks = self.0.clone();
 		let bid_ticks = ticks.iter().filter(|t| matches!(t.side.as_ref().unwrap(),OptionSide::Bid)).collect::<Vec<&OptionTick>>();
+		ensure!(bid_ticks.len() > 0, "No bid ticks in strikeboard");
+
 		let mut best_bid = bid_ticks[0].clone();
 		for tick in bid_ticks{
 			if tick.get_value() > best_bid.get_value(){
 				best_bid = tick.clone();
 			}
 		}
-		best_bid
+		Ok(best_bid)
 	}
 
 	/// The best_ask() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and returns the OptionTick instance with the lowest value for asks.
-	pub fn best_ask(&self) -> OptionTick{
+	pub fn best_ask(&self) -> Result<OptionTick>{
+
 		let ticks = self.0.clone();
 		let ask_ticks = ticks.iter().filter(|t| matches!(t.side.as_ref().unwrap(),OptionSide::Ask)).collect::<Vec<&OptionTick>>();
+		ensure!(ask_ticks.len() > 0, "No ask ticks in strikeboard");
+
 		let mut best_ask = ask_ticks[0].clone();
 		for tick in ask_ticks{
 			if tick.get_value() < best_ask.get_value(){
 				best_ask = tick.clone();
 			}
 		}
-		best_ask
+		Ok(best_ask)
 	}
 
 	/// The mid() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and calculates the mid-point between the OptionTick instance with the highest bid value and the OptionTick instance with the lowest ask value. It then returns an OptionTick instance with the calculated mid-point value.
-	pub fn mid(&self) -> OptionTick{
-		let best_bid = self.best_bid();
-		let best_ask = self.best_ask();
+	pub fn mid(&self) -> Result<OptionTick>{
+		let best_bid = self.best_bid()?;
+		let best_ask = self.best_ask()?;
 		let mid = (best_bid.get_value() + best_ask.get_value())/2.;
 		let mut mid_tick = best_bid.clone();
 		mid_tick.option_value = OptionValue::Price(mid);
-		mid_tick
+		Ok(mid_tick)
 		
 	}
 	
 }
+
+/// This trait automatically builds OptionChain, OptionBoard, StrikeBoard, etc. by simply entering an OptionTick.
+pub trait CRUD{
+	// fn create(&mut self, tick: OptionTick);
+	// fn read(&self, strike: FloatType) -> Option<OptionTick>;
+	fn upsert(&mut self, tick: OptionTick);
+	fn delete(&mut self, tick:OptionTick);
+}
+
+impl CRUD for StrikeBoard{
+	fn upsert(&mut self, tick: OptionTick) {
+		let mut ticks = self.0.clone();
+		let mut index = 0;
+		let mut found = false;
+		for (i, t) in ticks.iter().enumerate(){
+			if t.option_value == tick.option_value &&  t.side == tick.side{
+				index = i;
+				found = true;
+				break;
+			}
+		}
+		if found{
+			ticks[index] = tick;
+		}else{
+			ticks.push(tick);
+		}
+		self.0 = ticks;
+	}
+
+	fn delete(&mut self, tick:OptionTick) {
+		let mut ticks = self.0.clone();
+		let mut index = 0;
+		let mut found = false;
+		for (i, t) in ticks.iter().enumerate(){
+			if t.option_value == tick.option_value &&  t.side == tick.side{
+				index = i;
+				found = true;
+				break;
+			}
+		}
+		if found{
+			ticks.remove(index);
+		}
+		self.0 = ticks;
+
+	}
+
+
+	
+}
+
+impl CRUD for OptionChain<StrikeBoard>{
+	fn upsert(&mut self, tick: OptionTick) {
+		let mut strike_boards = self.data.clone();
+		let mut index = 0;
+		let mut found = false;
+		for (i, sb) in strike_boards.iter().enumerate(){
+			if sb.strike().unwrap() == tick.strike && sb.option_type().unwrap() == tick.option_type{
+				index = i;
+			found = true;
+				break;
+			}
+		}
+		if found{
+			strike_boards[index].upsert(tick);
+		}else{
+			let mut sb = StrikeBoard::new();
+			sb.push(tick);
+			strike_boards.push(sb);
+		}
+		self.data = strike_boards;
+
+	}
+	fn delete(&mut self, tick:OptionTick) {
+		let mut strike_boards = self.data.clone();
+		let mut index = 0;
+		let mut found = false;
+		for (i, sb) in strike_boards.iter().enumerate(){
+			if sb.strike().unwrap() == tick.strike && sb.option_type().unwrap() == tick.option_type{
+				index = i;
+				found = true;
+				break;
+			}
+		}
+		if found{
+			strike_boards[index].delete(tick);
+			if strike_boards[index].0.len() == 0{
+				strike_boards.remove(index);
+			}
+		}
+		self.data = strike_boards;
+	}
+	
+}
+
+// impl CRUD for OptionBoard<StrikeBoard>{
+// 	fn upsert(&mut self, tick: OptionTick) {
+// 		let mut option_chains = self.data.clone();
+// 		let mut index = 0;
+// 		let mut found = false;
+// 		for (i, oc) in option_chains.iter().enumerate(){
+// 			if oc.expiry().unwrap() == tick.expiry{
+// 				index = i;
+// 				found = true;
+// 				break;
+// 			}
+// 		}
+// 		if found{
+// 			option_chains[index].upsert(tick);
+// 		}else{
+// 			let mut oc = OptionChain::new();
+// 			oc.push(tick);
+// 			option_chains.push(oc);
+// 		}
+// 		self.data = option_chains;
+// 	}
+// 	fn delete(&mut self, tick:OptionTick) {
+// 		let mut option_chains = self.data.clone();
+// 		let mut index = 0;
+// 		let mut found = false;
+// 		for (i, oc) in option_chains.iter().enumerate(){
+// 			if oc.expiration().unwrap() == tick.expiration{
+// 				index = i;
+// 				found = true;
+// 				break;
+// 			}
+// 		}
+// 		if found{
+// 			option_chains[index].delete(tick);
+// 			if option_chains[index].data.len() == 0{
+// 				option_chains.remove(index);
+// 			}
+// 		}
+// 		self.data = option_chains;
+// 	}
+
+
+// }
 
 
 /// Trait to retrieve common information
@@ -161,6 +304,31 @@ impl ExtractCommonInfo for OptionChain<OptionTick>{
 	
 }
 
+impl ExtractCommonInfo for OptionChain<StrikeBoard>{
+	fn expiry(&self) -> Result<FloatType>{
+		Ok(self.data[0].0[0].expiry)
+	}
+	fn risk_free_rate(&self) -> Result<FloatType>{
+		Ok(self.data[0].0[0].risk_free_rate)
+	}
+	fn dividend_yield(&self) -> Result<FloatType>{
+		Ok(self.data[0].0[0].dividend_yield)
+	}
+
+	
+}
+
+
+impl ExtractCommonInfo for StrikeBoard{
+	fn strike(&self) -> Result<FloatType>{
+		Ok(self.0[0].strike)
+	}
+	fn option_type(&self) -> Result<OptionType> {
+		Ok(self.0[0].option_type.clone())
+	}
+
+	
+}
 
 #[derive(Clone, Debug, TypedBuilder)]
 pub struct OptionChain<T>{
@@ -298,5 +466,5 @@ impl OptionChain<OptionTick>{
 #[derive(Debug, Clone)]
 pub struct OptionBoard<T>{
 	pub data: Vec<OptionChain<T>>
-}
 
+}

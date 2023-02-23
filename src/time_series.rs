@@ -18,10 +18,10 @@
 //! # Arithmetic operations
 //! The TimeSeries type defines arithmetic operations for types that implement the Add, Sub, Mul, and Div traits. The following operations are available:
 //!
-//! - TimeSeries<T> @ TimeSeries<T>
-//! - 	TimeSeries<T> @ &TimeSeries<T>
-//! - &TimeSeries<T> @ TimeSeries<T>
-//! - &TimeSeries<T> @ &TimeSeries<T>
+//! - TimeSeries\<T\> @ TimeSeries\<T\>
+//! - 	TimeSeries\<T\> @ &TimeSeries\<T\>
+//! - &TimeSeries\<T\> @ TimeSeries\<T\>
+//! - &TimeSeries\<T\> @ &TimeSeries\<T\>
 //! However, @ refers to the four arithmetic operations +, -, *, /.
 //! For example, to add two TimeSeries, use the + operator:
 //! ```rust
@@ -31,7 +31,7 @@
 //! let ts4 = ts1 + ts2;
 //! ```
 //! ### Attention.
-//! I don't know why, but it seems that an error is detected by rust-analyzer regarding TimeSeries<T> @ TimeSeries<T>. It actually works, but may be a bit of a hindrance when coding.
+//! I don't know why, but it seems that an error is detected by rust-analyzer regarding TimeSeries\<T\> @ TimeSeries\<T\>. It actually works, but may be a bit of a hindrance when coding.
 //! # Mapping
 //! You can apply a function to each element of a TimeSeries using the map() method. For example:
 //! ```rust
@@ -71,7 +71,7 @@
 //! // Calculate the difference between the 25delta call and put implied volatility values to obtain put-call parity
 //! let delta_iv_ts = &call_25delta_iv - &put_25delta_iv;
 //! ```
-//! In the above code, call_25delta_iv and put_25delta_iv are TimeSeries<f64> that contain the implied volatility values of the 25delta call and put option ticks, respectively. The delta_iv_ts is a TimeSeries<f64> that contains the put-call parity values.
+//! In the above code, call_25delta_iv and put_25delta_iv are TimeSeries\<f64\> that contain the implied volatility values of the 25delta call and put option ticks, respectively. The delta_iv_ts is a TimeSeries\<f64\> that contains the put-call parity values.
 
 
 
