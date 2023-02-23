@@ -1,0 +1,197 @@
+* これは何？
+デリバティブオプションの分析を行うためのツールです。
+
+* できること
+- strike板のbest bid, best ask, mid価格を取得
+- option chainのotm, atm, call, put, 25delta, 50deltaを取得
+- black scholesによるiv <-> premiumの相互計算
+- グリークス16種の計算
+- greeks exposure16種の計算（gamma exposureなど）
+- 時系列データの計算
+
+  
+* 使い方
+** OptionTick
+OptionTick structはオプションのtickデータを表します。
+builder patternを実装しており、次のように作成できます。
+#+begin_src rust
+use optiors::prelude::*;
+use chrono::prelude::*;
+
+let mut tick = OptionTick::builder().strike(100.0).asset_price(99.).maturity(maturity)
+    .option_type(OptionType::Call).option_value(OptionValue::Price(3.)).side(OptionSide::Bid)
+    .additional_data(AdditionalOptionData::builder().volume(20.).build())
+    .build();
+
+tick = tick.get_implied_volatility();
+
+dbg!(tick.iv());
+dbg!(tick.delta());
+dbg!(tick.dual_delta());
+dbg!(tick.ultima());
+
+#+end_src
+
+OptionTickはBlack Scholesによりivとpremiumを相互に計算できます。
+また、様々なグリークスも計算可能です。
+
+** StrikeBoard
+StrikeBoardは特定の満期、特定のストライクのbid, askの板情報を表します。
+
+#+begin_src rust
+let mut sb = StrikeBoard::new();
+sb.push(OptionTick::builder().strike(27800.).asset_price(27602.).risk_free_rate(0.0015).option_value(OptionValue::Price(200.)).expiry(0.06575).option_type(OptionType::Call).side(OptionSide::Bid).build());
+sb.push(OptionTick::builder().strike(27800.).asset_price(27602.).risk_free_rate(0.0015).option_value(OptionValue::Price(230.)).expiry(0.06575).option_type(OptionType::Call).side(OptionSide::Bid).build());
+sb.push(OptionTick::builder().strike(27800.).asset_price(27602.).risk_free_rate(0.0015).option_value(OptionValue::Price(250.)).expiry(0.06575).option_type(OptionType::Call).side(OptionSide::Ask).build());
+sb.push(OptionTick::builder().strike(27800.).asset_price(27602.).risk_free_rate(0.0015).option_value(OptionValue::Price(270.)).expiry(0.06575).option_type(OptionType::Call).side(OptionSide::Ask).build());
+
+// 以下はOptionTickを返します
+dbg!(sb.best_bid());
+dbg!(sb.best_ask());
+dbg!(sb.mid()); // 仲値
+dbg!(sb.mid_weighted()); // volumeで重み付けした仲値
+#+end_src
+
+** OptionChain
+OptionChain<T>は特定の満期のオプションチェーンを表します。
+TはOptionTickまたはStrikeBoardです。strike板を含めた場合も、含めず簡略化されたtickデータでもどちらもOptionChainに格納できます。
+
+#+begin_src rust
+let mut oc:OptionChain<OptionTick> = OptionChain::builder().maturity(chrono::Utc::now()).build();
+oc.data.push(OptionTick::builder().strike(27700.).asset_price(27802.).risk_free_rate(0.0015).option_value(OptionValue::Price(200.)).expiry(0.06575).option_type(OptionType::Call).build());
+oc.data.push(OptionTick::builder().strike(27800.).asset_price(27802.).risk_free_rate(0.0015).option_value(OptionValue::Price(200.)).expiry(0.06575).option_type(OptionType::Call).build());
+oc.data.push(OptionTick::builder().strike(27900.).asset_price(27802.).risk_free_rate(0.0015).option_value(OptionValue::Price(200.)).expiry(0.06575).option_type(OptionType::Call).build());
+oc.data.push(OptionTick::builder().strike(28000.).asset_price(27802.).risk_free_rate(0.0015).option_value(OptionValue::Price(200.)).expiry(0.06575).option_type(OptionType::Call).build());
+
+// 以下はSelfを返します
+dbg!(oc.otm()); 
+
+// 以下はTを返します
+dbg!(oc.atm());
+dbg!(oc.call_25delta()); // call optionでdeltaが25%のtick
+dbg!(oc.put_50delta()); // put optionでdeltaが50%のtick
+
+// 以下は次のような処理です。
+// StrikeBoardから仲値を計算:OptionChain<StrikeBoard> -> OptionChain<OptionTick>
+// ATMのtickを取得:OptionChain<OptionTick> -> OptionTick
+// ivを計算:OptionTick -> OptionTick
+// vegasを計算:OptionTick -> f64
+dbg!(oc.map(StrikeBoard::mid).unwrap().atm().get_implied_volatility().vega())
+#+end_src
+
+** OptionBoard
+全ての満期のOptionChainを集めたものがOptionBoardです。
+OptionBoardはOptionTickを効率的に挿入することができます。
+
+#+begin_src rust
+let mut ob = OptionBoard::<StrikeBoard>::new();
+let tick = OptionTick::builder().strike(100.0).asset_price(99.).maturity(maturity)
+    .option_type(OptionType::Call).option_value(OptionValue::Price(3.)).side(OptionSide::Bid)
+    .additional_data(AdditionalOptionData::builder().volume(20.).build())
+    .build();
+ob.upsert(tick);
+let tick = OptionTick::builder().strike(200.0).asset_price(99.).maturity(maturity)
+    .option_type(OptionType::Call).option_value(OptionValue::Price(3.)).side(OptionSide::Bid)
+    .additional_data(AdditionalOptionData::builder().volume(20.).build())
+    .build();
+ob.upsert(tick);
+let tick = OptionTick::builder().strike(200.0).asset_price(99.).maturity(maturity)
+    .option_type(OptionType::Call).option_value(OptionValue::Price(5.)).side(OptionSide::Ask)
+    .additional_data(AdditionalOptionData::builder().volume(20.).build())
+    .build();
+ob.upsert(tick);
+let tick = OptionTick::builder().strike(200.0).asset_price(99.).maturity(Utc::now() + chrono::Duration::days(60))
+    .option_type(OptionType::Call).option_value(OptionValue::Price(5.)).side(OptionSide::Ask)
+    .additional_data(AdditionalOptionData::builder().volume(20.).build())
+    .build();
+ob.upsert(tick);
+dbg!(ob);
+
+#+end_src
+これを実行すると次のような出力が得られます。
+#+begin_src result
+[src/main.rs:70] ob = OptionBoard(
+    [
+        OptionChain(
+            [
+                StrikeBoard(
+                    [
+                        OptionTick {
+                            strike: 100.0,
+                            maturity: 2023-03-25T13:04:11.172354Z,
+                            asset_price: 99.0,
+                            risk_free_rate: 0.001,
+                            dividend_yield: 0.0,
+                            option_type: Call,
+                            option_value: Price(
+                                3.0,
+                            ),
+                            side: Some(
+                                Bid,
+                            ),
+                            additional_data: Some(
+                                AdditionalOptionData {
+                                    open_interest: None,
+                                    volume: Some(
+                                        20.0,
+                                    ),
+                                },
+                            ),
+                        },
+                    ],
+                ),
+                StrikeBoard(
+                    [
+                        OptionTick {
+                            strike: 200.0,
+                            maturity: 2023-03-25T13:04:11.172354Z,
+                            asset_price: 99.0,
+                            risk_free_rate: 0.001,
+                            dividend_yield: 0.0,
+                            option_type: Call,
+                            option_value: Price(
+                                3.0,
+                            ),
+                            side: Some(
+                                Bid,
+                            ),
+                            additional_data: Some(
+                                AdditionalOptionData {
+                                    open_interest: None,
+                                    volume: Some(
+                                        20.0,
+                                    ),
+                                },
+                            ),
+
+.......
+#+end_src
+
+このように、upsertはStrikeBoard, OptionChainなどを自動的に作成し、すでにデータが存在する場合は上書きし、存在しない場合は追加します。
+この関数のおかげで、OptionBoardを作成するのはとても簡単です。
+オプションデータが与えられた時に、OptionTickを全てupsertするだけです。
+
+** TimeSeries
+TimeSeries<T>はTの時系列データです。
+Tはなんでも構いません。
+TimeSeriesにはmap関数が用意されており、例えばT -> Uとデータを指標に変換する関数が与えられたときに、
+TimeSeries<T> -> TimeSeries<U>というふうにデータの時系列を指標の時系列に変換することができます。
+
+#+begin_src rust
+// 特定の満期、特定のストライクのbid ask板情報の時系列データを作成
+let mut ts:TimeSeries<StrikeBoard> = TimeSeries::new();
+ts.push(sb.clone());
+ts.push(sb.clone());
+ts.push(sb.clone());
+
+// 板の仲値を計算し、そのIVを計算し、グリークスの時系列データを作成
+// 時系列の中身はStrikeBoard -> OptionTick -> FloatTypeに推移する
+let ts1:TimeSeries<FloatType> = ts.map(StrikeBoard::mid).map(OptionTick::get_implied_volatility).map(OptionTick::vega);
+let ts2:TimeSeries<FloatType> = ts.map(StrikeBoard::best_bid).map(OptionTick::get_implied_volatility).map(OptionTick::vanna);
+
+#+end_src
+
+
+これにより、時系列データを簡単に扱うことができます。
+
+
