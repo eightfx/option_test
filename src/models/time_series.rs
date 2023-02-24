@@ -19,7 +19,7 @@
 //! The TimeSeries type defines arithmetic operations for types that implement the Add, Sub, Mul, and Div traits. The following operations are available:
 //!
 //! - TimeSeries\<T\> @ TimeSeries\<T\>
-//! - 	TimeSeries\<T\> @ &TimeSeries\<T\>
+//! - TimeSeries\<T\> @ &TimeSeries\<T\>
 //! - &TimeSeries\<T\> @ TimeSeries\<T\>
 //! - &TimeSeries\<T\> @ &TimeSeries\<T\>
 //! However, @ refers to the four arithmetic operations +, -, *, /.
@@ -85,9 +85,6 @@ pub struct TimeSeries<T>(pub Vec<T>);
 impl<T> TimeSeries<T>
 // where T:Clone
 {
-	pub fn new() -> TimeSeries<T>{
-		TimeSeries(Vec::new())
-	}
 	pub fn push(&mut self, value: T){
 		self.0.push(value);
 	}
@@ -97,6 +94,12 @@ impl<T> TimeSeries<T>
 		TimeSeries(self.0.iter().map(f).collect())
 	}
 	
+}
+
+impl<T> Default for TimeSeries<T> {
+	fn default() -> Self {
+		Self(Vec::new())
+	}
 }
 
 impl<T> TimeSeries<Result<T>>{

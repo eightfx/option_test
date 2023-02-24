@@ -12,7 +12,7 @@
 use crate::greeks::EuropeanGreeks;
 use paste::paste;
 use anyhow::{Result, ensure};
-use crate::structs::*;
+use crate::models::*;
 use crate::black_scholes::*;
 
 macro_rules! exposure_trait {

@@ -1,22 +1,16 @@
 //! This trait is used to calculate each value of the BLACK SCHOLES model.
 //! # How to use
 //! ```
-//! mod structs;
-//! mod greeks;
-//! use crate::structs::*;
-//! use crate::greeks::Greeks;
-//! fn main() {
 //! let option = OptionTick::builder().strike(250.).asset_price(100.).risk_free_rate(0.001)
 //!                   .implied_volatility(10.).expiry(30./365.).option_type(OptionType::Call).build();
 //! dbg!(option.theoretical_price());
-//! }
 //! ```
 //! # Formula
 //! See BlackScholes trait page.
 
 
 use probability::prelude::*;
-use crate::structs::*;
+use crate::models::*;
 
 #[cfg_attr(doc, katexit::katexit)]
 /// This is the trait for calculating European Greeks.
@@ -31,27 +25,27 @@ pub trait BlackScholes{
 	/// Returns the d1 
 	/// # Formula
 	/// $$
-	/// 	d_{1}={\frac {\ln(S/K)+\left(r-q+{\frac {1}{2}}\sigma ^{2}\right)\tau }{\sigma {\sqrt {\tau }}}}
+	/// d_{1}={\frac {\ln(S/K)+\left(r-q+{\frac {1}{2}}\sigma ^{2}\right)\tau }{\sigma {\sqrt {\tau }}}}
 	/// $$
 	fn d1(&self) ->FloatType;
 	/// Returns the d1 
 	/// # Formula
 	/// $$
-	/// 	d_{2}={\frac {\ln(S/K)+\left(r-q-{\frac {1}{2}}\sigma ^{2}\right)\tau }{\sigma {\sqrt {\tau }}}}=d_{1}-\sigma {\sqrt {\tau }}
+	/// d_{2}={\frac {\ln(S/K)+\left(r-q-{\frac {1}{2}}\sigma ^{2}\right)\tau }{\sigma {\sqrt {\tau }}}}=d_{1}-\sigma {\sqrt {\tau }}
 	/// $$
 	fn d2(&self) ->FloatType;
 
 	/// Returns the phi 
 	/// # Formula
 	/// $$
-	/// 	\phi(x) = \frac{1}{\sqrt{2\pi}}e^{-\frac{x^2}{2}}
+	/// \phi(x) = \frac{1}{\sqrt{2\pi}}e^{-\frac{x^2}{2}}
 	/// $$
 	fn phi(x:&FloatType) ->FloatType;
 
 	/// Returns the phi 
 	/// # Formula
 	/// $$
-	/// 	\Phi(x) =  \frac{1}{\sqrt{2\pi}}\int_{-\infty}^{x}e^{-\frac{t^2}{2}}dt
+	/// \Phi(x) =  \frac{1}{\sqrt{2\pi}}\int_{-\infty}^{x}e^{-\frac{t^2}{2}}dt
 	/// $$
 	#[allow(non_snake_case)]
 	fn Phi(x:&FloatType) ->FloatType;
@@ -59,10 +53,10 @@ pub trait BlackScholes{
 	/// Returns a new OptionTick instance with the theoretical price calculated from the implied volatility using the Black-Scholes formula.
 	/// # Formula
 	/// $$
-	/// 	C(S_t,K,\tau,r,q,\sigma) = S_t e^{-q\tau} \Phi(d_1) - K e^{-r\tau} \Phi(d_2)
+	/// C(S_t,K,\tau,r,q,\sigma) = S_t e^{-q\tau} \Phi(d_1) - K e^{-r\tau} \Phi(d_2)
 	/// $$
 	/// $$
-	/// 	P(S_t,K,\tau,r,q,\sigma) = K e^{-r\tau} \Phi(-d_2) - S_t e^{-q\tau} \Phi(-d_1)
+	/// P(S_t,K,\tau,r,q,\sigma) = K e^{-r\tau} \Phi(-d_2) - S_t e^{-q\tau} \Phi(-d_1)
 	/// $$
 	///
 	/// # Process flow
@@ -178,8 +172,8 @@ impl BlackScholes for OptionTick{
 					let d1 = option_with_iv.d1();
 					let g = Gaussian::new(0.0, 1.0);
 					let vega = self.asset_price * tau.sqrt() * g.distribution(d1);
-					sigma = sigma - diff / vega;
-					diff = Self::_difference(&option, sigma.clone());
+					sigma  -= diff / vega;
+					diff = Self::_difference(&option, sigma);
 					iter += 1;
 				}
 				let new_sigma = sigma;
