@@ -1,3 +1,4 @@
+use serde::{Serialize, Deserialize};
 use crate::greeks::EuropeanGreeks;
 use crate::black_scholes::*;
 use anyhow::{anyhow,Result, ensure};
@@ -6,38 +7,39 @@ use chrono::{DateTime, Utc};
 
 pub type FloatType = f64;
 
-#[derive(Clone,Debug, PartialEq)]
+#[derive(Clone,Debug, PartialEq, Serialize, Deserialize)]
 pub enum OptionType{
 	Put,
 	Call
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Debug, Serialize, Deserialize)]
 pub enum OptionStyle{
 	European,
 	American
 }
 
-#[derive(Clone,Debug, PartialEq)]
+#[derive(Clone,Debug, PartialEq, Serialize, Deserialize)]
 pub enum OptionSide{
 	Bid,
 	Ask
 }
 
-#[derive(Clone,Debug, PartialEq)]
+
+#[derive(Clone,Debug, PartialEq, Serialize, Deserialize)]
 pub enum OptionValue{
 	Price(FloatType),
 	ImpliedVolatility(FloatType)
 }
 
-#[derive(Clone, Debug, TypedBuilder)]
+#[derive(Clone, Debug, TypedBuilder, Serialize, Deserialize)]
 #[builder(field_defaults(default, setter(strip_option)))]
 pub struct AdditionalOptionData{
 	pub open_interest: Option<FloatType>,
 	pub volume: Option<FloatType>,
 }
 
-#[derive(Clone,Debug, TypedBuilder)]
+#[derive(Clone,Debug, TypedBuilder, Serialize, Deserialize)]
 pub struct OptionTick{
 	pub strike: FloatType,
 	pub maturity: DateTime<Utc>,
@@ -93,7 +95,7 @@ impl OptionTick{
 
 }
 
-#[derive(Clone,Debug)]
+#[derive(Clone,Debug, Serialize, Deserialize)]
 pub struct StrikeBoard(pub Vec<OptionTick>);
 
 impl StrikeBoard{
@@ -385,6 +387,18 @@ impl ExtractCommonInfo for OptionChain<StrikeBoard>{
 
 	
 }
+impl ExtractCommonInfo for OptionBoard<StrikeBoard>{
+	fn maturity(&self) -> Result<DateTime<Utc>> {
+		Ok(self.0[0].0[0].0[0].maturity)
+	}
+	
+}
+impl ExtractCommonInfo for OptionBoard<OptionTick>{
+	fn maturity(&self) -> Result<DateTime<Utc>> {
+		Ok(self.0[0].0[0].maturity)
+	}
+	
+}
 
 
 impl ExtractCommonInfo for StrikeBoard{
@@ -398,7 +412,7 @@ impl ExtractCommonInfo for StrikeBoard{
 	
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct OptionChain<T>(pub Vec<T>);
 impl<T> OptionChain<T>{
 	pub fn map<U>(&self, f : impl Fn(&T) -> U) -> OptionChain<U>{
@@ -575,7 +589,7 @@ impl OptionChain<OptionTick>{
 
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone)]
 pub struct OptionBoard<T>(pub Vec<OptionChain<T>>);
 
 
@@ -583,5 +597,12 @@ impl<T> OptionBoard<T>{
 	pub fn push(&mut self, chain: OptionChain<T>){
 		self.0.push(chain);
 	}
+
+	// pub fn sort_by_maturity(&self) -> Self{
+	// 	let mut sorted_board = self.clone();
+	// 	sorted_board.0.sort_by(|a,b| a.maturity().partial_cmp(&b.maturity()).unwrap());
+	// 	sorted_board
+	// }
+
 	
 }
