@@ -9,11 +9,11 @@
 //! # Example
 //! A prime example of Greek exposure is also called gamma exposure (GEX), which represents a market maker's gamma risk in their position. By monitoring their Greeks Exposure, market makers can manage the risk associated with their option positions.
 
-use crate::greeks::EuropeanGreeks;
-use paste::paste;
-use anyhow::{Result, ensure};
-use crate::models::*;
 use crate::black_scholes::*;
+use crate::greeks::EuropeanGreeks;
+use crate::models::*;
+use anyhow::{ensure, Result};
+use paste::paste;
 
 macro_rules! exposure_trait {
 	($($greeks_name:ident),*) => {
@@ -62,7 +62,7 @@ macro_rules! exposure_impl{
 							}
 						}
 						Ok(sum)
-					
+
 					}
 				}
 
@@ -70,9 +70,14 @@ macro_rules! exposure_impl{
 			}
 	};
 
-	
+
 }
 
-exposure_trait!(delta, gamma, theta, rho, vega, epsilon, vanna, charm, vomma, veta, speed, zomma, color, ultima, dual_delta, dual_gamma);
-exposure_impl!(delta, gamma, theta, rho, vega, epsilon, vanna, charm, vomma, veta, speed, zomma, color, ultima, dual_delta, dual_gamma);
-
+exposure_trait!(
+    delta, gamma, theta, rho, vega, epsilon, vanna, charm, vomma, veta, speed, zomma, color,
+    ultima, dual_delta, dual_gamma
+);
+exposure_impl!(
+    delta, gamma, theta, rho, vega, epsilon, vanna, charm, vomma, veta, speed, zomma, color,
+    ultima, dual_delta, dual_gamma
+);

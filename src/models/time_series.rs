@@ -73,85 +73,100 @@
 //! ```
 //! In the above code, call_25delta_iv and put_25delta_iv are TimeSeries\<f64\> that contain the implied volatility values of the 25delta call and put option ticks, respectively. The delta_iv_ts is a TimeSeries\<f64\> that contains the put-call parity values.
 
-
-
-use std::ops::*;
 use anyhow::Result;
+use std::ops::*;
 
 #[derive(Clone, Debug)]
 pub struct TimeSeries<T>(pub Vec<T>);
 
-
 impl<T> TimeSeries<T>
 // where T:Clone
 {
-	pub fn push(&mut self, value: T){
-		self.0.push(value);
-	}
+    pub fn push(&mut self, value: T) {
+        self.0.push(value);
+    }
 
-	/// Given a function f: T \-\> U that converts data to indicator, give a function map: TimeSeries\<T\> \-\> TimeSeries\<U\> that converts time series data to time series indices
-	pub fn map<U>(&self, f : impl Fn(&T) -> U) -> TimeSeries<U>{
-		TimeSeries(self.0.iter().map(f).collect())
-	}
-	
+    /// Given a function f: T \-\> U that converts data to indicator, give a function map: TimeSeries\<T\> \-\> TimeSeries\<U\> that converts time series data to time series indices
+    pub fn map<U>(&self, f: impl Fn(&T) -> U) -> TimeSeries<U> {
+        TimeSeries(self.0.iter().map(f).collect())
+    }
 }
 
 impl<T> Default for TimeSeries<T> {
-	fn default() -> Self {
-		Self(Vec::new())
-	}
+    fn default() -> Self {
+        Self(Vec::new())
+    }
 }
 
-impl<T> TimeSeries<Result<T>>{
-	pub fn unwrap(self) -> TimeSeries<T>{
-		TimeSeries(self.0.into_iter().map(|x| x.unwrap()).collect())
-	}
-	
+impl<T> TimeSeries<Result<T>> {
+    pub fn unwrap(self) -> TimeSeries<T> {
+        TimeSeries(self.0.into_iter().map(|x| x.unwrap()).collect())
+    }
 }
 
 #[auto_impl_ops::auto_ops]
 impl<T> Add<&TimeSeries<T>> for TimeSeries<T>
-where for<'a> &'a T:Add<Output=T>
+where
+    for<'a> &'a T: Add<Output = T>,
 {
-	type Output = TimeSeries<T>;
-	fn add(self, other:&Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a+b).collect())
-	}
-
+    type Output = TimeSeries<T>;
+    fn add(self, other: &Self) -> Self::Output {
+        TimeSeries(
+            self.0
+                .iter()
+                .zip(other.0.iter())
+                .map(|(a, b)| a + b)
+                .collect(),
+        )
+    }
 }
 
 #[auto_impl_ops::auto_ops]
 impl<T> Sub<&TimeSeries<T>> for TimeSeries<T>
-where for<'a> &'a T:Sub<Output=T>
+where
+    for<'a> &'a T: Sub<Output = T>,
 {
-	type Output = TimeSeries<T>;
-	fn sub(self, other:&Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a-b).collect())
-	}
-	
+    type Output = TimeSeries<T>;
+    fn sub(self, other: &Self) -> Self::Output {
+        TimeSeries(
+            self.0
+                .iter()
+                .zip(other.0.iter())
+                .map(|(a, b)| a - b)
+                .collect(),
+        )
+    }
 }
 #[auto_impl_ops::auto_ops]
 impl<T> Mul<&TimeSeries<T>> for TimeSeries<T>
-where for<'a> &'a T:Mul<Output=T>
+where
+    for<'a> &'a T: Mul<Output = T>,
 {
-	type Output = TimeSeries<T>;
-	fn mul(self, other:&Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a*b).collect())
-	}
-
+    type Output = TimeSeries<T>;
+    fn mul(self, other: &Self) -> Self::Output {
+        TimeSeries(
+            self.0
+                .iter()
+                .zip(other.0.iter())
+                .map(|(a, b)| a * b)
+                .collect(),
+        )
+    }
 }
 
 #[auto_impl_ops::auto_ops]
 impl<T> Div<&TimeSeries<T>> for TimeSeries<T>
-where for<'a> &'a T:Div<Output=T>
+where
+    for<'a> &'a T: Div<Output = T>,
 {
-	type Output = TimeSeries<T>;
-	fn div(self, other:&Self) -> Self::Output{
-		TimeSeries(self.0.iter().zip(other.0.iter()).map(|(a,b)| a/b).collect())
-	}
-
+    type Output = TimeSeries<T>;
+    fn div(self, other: &Self) -> Self::Output {
+        TimeSeries(
+            self.0
+                .iter()
+                .zip(other.0.iter())
+                .map(|(a, b)| a / b)
+                .collect(),
+        )
+    }
 }
-
-
-
-
