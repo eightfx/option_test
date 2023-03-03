@@ -98,14 +98,13 @@ pub struct StrikeBoard(pub Vec<OptionTick>);
 
 impl StrikeBoard {
     /// The best_bid() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and returns the OptionTick instance with the highest value for bids.
-    pub fn best_bid(&self) -> Result<OptionTick> {
+    fn best_bid(&self) -> Result<OptionTick> {
         let ticks = self.0.clone();
         let bid_ticks = ticks
             .iter()
             .filter(|t| matches!(t.side.as_ref().unwrap(), OptionSide::Bid))
             .collect::<Vec<&OptionTick>>();
         ensure!(!bid_ticks.is_empty(), "No bid ticks in strikeboard");
-		// if !bid_ticks.is_empty(){panic!("No bid ticks in strikeboard")}
 
 
 		let mut best_bid = bid_ticks[0].clone();
@@ -120,7 +119,7 @@ impl StrikeBoard {
     }
 
     /// The best_ask() function is a method of the StrikeBoard struct in Rust. It takes the self reference to an instance of StrikeBoard and returns the OptionTick instance with the lowest value for asks.
-    pub fn best_ask(&self) -> Result<OptionTick> {
+    fn best_ask(&self) -> Result<OptionTick> {
         let ticks = self.0.clone();
         let ask_ticks = ticks
             .iter()
@@ -161,7 +160,7 @@ impl StrikeBoard {
         Ok(mid_tick)
     }
 
-    pub fn mid_weighted(&self) -> Result<OptionTick> {
+    pub fn mid_weighted(&self) -> OptionTick {
         let best_bid = self.best_bid();
         let best_ask = self.best_ask();
 
@@ -179,10 +178,10 @@ impl StrikeBoard {
             (Err(_), Ok(ask)) => ask,
             (Ok(bid), Err(_)) => bid,
             (Err(_), Err(_)) => {
-                return Err(anyhow!("No bid or ask ticks in strikeboard"));
+				panic!("No Bid and Ask on a StrikeBoard")
             }
         };
-        Ok(mid_tick)
+		mid_tick
     }
 }
 
@@ -401,6 +400,18 @@ impl OptionChain<OptionTick> {
         }
         put_chain.0[index].clone()
     }
+	pub fn smile_curve(&self) -> (Vec<FloatType>, Vec<FloatType>){
+		let mut smile_curve:Vec<FloatType> = Vec::new();
+		let mut strikes:Vec<FloatType> = Vec::new();
+		let sorted_chain = self.sort_by_strike();
+		for option_tick in sorted_chain.0{
+			smile_curve.push(option_tick.iv());
+			strikes.push(option_tick.strike().unwrap());
+		}
+		
+		(strikes,smile_curve)
+	}
+
 }
 
 #[derive(Debug, Deserialize, Serialize, Clone)]
@@ -435,6 +446,10 @@ where
         let sorted_board = self.sort_by_maturity();
         sorted_board.0[0].clone()
     }
+	pub fn get(&self, index:usize) -> OptionChain<T>{
+        let sorted_board = self.sort_by_maturity();
+        sorted_board.0[index].clone()
+	}
 }
 
 pub trait OptionBase: Clone {}
