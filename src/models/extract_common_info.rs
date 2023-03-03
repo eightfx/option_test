@@ -1,6 +1,6 @@
 use super::structs::{
     FloatType, OptionBase, OptionBoard, OptionChain, OptionSide, OptionTick, OptionType,
-    OptionValue, StrikeBoard,
+    OptionValue, StrikeBoard,DecimalType
 };
 use anyhow::{anyhow, Result};
 use chrono::{DateTime, Utc};
@@ -9,7 +9,7 @@ use chrono::{DateTime, Utc};
 /// For example, since OptionChain is a set of OptionTicks with the same maturity, this trait can be used to retrieve maturity information.
 /// If it tries to retrieve information that is not common information, it returns None.
 pub trait ExtractCommonInfo {
-    fn strike(&self) -> Result<FloatType> {
+    fn strike(&self) -> Result<DecimalType> {
         Err(anyhow!("This function is not available for this struct. Because the value you are calling is not a common value."))
     }
     fn maturity(&self) -> Result<DateTime<Utc>> {
@@ -35,7 +35,7 @@ pub trait ExtractCommonInfo {
     }
 }
 impl ExtractCommonInfo for OptionTick {
-    fn strike(&self) -> Result<FloatType> {
+    fn strike(&self) -> Result<DecimalType> {
         Ok(self.strike)
     }
     fn maturity(&self) -> Result<DateTime<Utc>> {
@@ -59,7 +59,7 @@ impl ExtractCommonInfo for OptionTick {
 }
 
 impl ExtractCommonInfo for StrikeBoard {
-    fn strike(&self) -> Result<FloatType> {
+    fn strike(&self) -> Result<DecimalType> {
         Ok(self.0[0].strike().unwrap())
     }
     fn maturity(&self) -> Result<DateTime<Utc>> {

@@ -10,6 +10,7 @@
 
 use crate::models::*;
 use probability::prelude::*;
+use rust_decimal::prelude::*;
 
 #[cfg_attr(doc, katexit::katexit)]
 /// This is the trait for calculating European Greeks.
@@ -104,10 +105,10 @@ impl BlackScholes for OptionTick {
         match self.option_value {
             OptionValue::Price(_) => FloatType::NAN,
             OptionValue::ImpliedVolatility(implied_volatility) => {
-                ((self.asset_price / self.strike).log(std::f64::consts::E)
-                    + (self.risk_free_rate - self.dividend_yield
-                        + 0.5 * implied_volatility * implied_volatility)
-                        * tau)
+                ((self.asset_price / self.strike.to_f64().unwrap()).log(std::f64::consts::E)
+                 + (self.risk_free_rate - self.dividend_yield
+                    + 0.5 * implied_volatility * implied_volatility)
+                 * tau)
                     / (implied_volatility * tau.sqrt())
             }
         }
@@ -117,10 +118,10 @@ impl BlackScholes for OptionTick {
         match self.option_value {
             OptionValue::Price(_) => FloatType::NAN,
             OptionValue::ImpliedVolatility(implied_volatility) => {
-                ((self.asset_price / self.strike).log(std::f64::consts::E)
-                    + (self.risk_free_rate
-                        - self.dividend_yield
-                        - 0.5 * implied_volatility * implied_volatility)
+                ((self.asset_price / self.strike.to_f64().unwrap()).log(std::f64::consts::E)
+                 + (self.risk_free_rate
+                    - self.dividend_yield
+                    - 0.5 * implied_volatility * implied_volatility)
                         * tau)
                     / (implied_volatility * tau.sqrt())
             }
@@ -147,11 +148,11 @@ impl BlackScholes for OptionTick {
                 let price = match self.option_type {
                     OptionType::Call => {
                         (-self.dividend_yield * tau).exp() * self.asset_price * Self::Phi(&d1)
-                            - self.strike * (-self.risk_free_rate * tau).exp() * Self::Phi(&d2)
+                            - self.strike.to_f64().unwrap() * (-self.risk_free_rate * tau).exp() * Self::Phi(&d2)
                     }
                     OptionType::Put => {
-                        self.strike * (-self.risk_free_rate * tau).exp() * Self::Phi(&(-d2))
-                            - (-self.dividend_yield * tau).exp()
+                        self.strike.to_f64().unwrap() * (-self.risk_free_rate * tau).exp() * Self::Phi(&(-d2))
+							- (-self.dividend_yield * tau).exp()
                                 * self.asset_price
                                 * Self::Phi(&(-d1))
                     }

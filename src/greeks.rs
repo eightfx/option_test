@@ -12,6 +12,7 @@
 //! # Formula
 //! See EuropeanGreeks trait page.
 
+use rust_decimal::prelude::*;
 use crate::black_scholes::*;
 use crate::models::*;
 
@@ -194,9 +195,9 @@ impl EuropeanGreeks for OptionTick {
                     * implied_volatility
                     / (2.0 * tau.sqrt())
                     - self.risk_free_rate
-                        * self.strike
-                        * (-self.risk_free_rate * tau).exp()
-                        * Self::Phi(&d2)
+                    * self.strike.to_f64().unwrap()
+                    * (-self.risk_free_rate * tau).exp()
+                    * Self::Phi(&d2)
                     + self.dividend_yield
                         * self.asset_price
                         * (-self.dividend_yield * tau).exp()
@@ -209,9 +210,9 @@ impl EuropeanGreeks for OptionTick {
                     * implied_volatility
                     / (2.0 * tau.sqrt())
                     + self.risk_free_rate
-                        * self.strike
-                        * (-self.risk_free_rate * tau).exp()
-                        * Self::Phi(&(-d2))
+                    * self.strike.to_f64().unwrap()
+                    * (-self.risk_free_rate * tau).exp()
+                    * Self::Phi(&(-d2))
                     - self.dividend_yield
                         * self.asset_price
                         * (-self.dividend_yield * tau).exp()
@@ -225,10 +226,10 @@ impl EuropeanGreeks for OptionTick {
         let tau = self.tau();
         match self.option_type {
             OptionType::Call => {
-                tau * self.strike * (-self.risk_free_rate * tau).exp() * Self::Phi(&d2)
+                tau * self.strike.to_f64().unwrap() * (-self.risk_free_rate * tau).exp() * Self::Phi(&d2)
             }
             OptionType::Put => {
-                -tau * self.strike * (-self.risk_free_rate * tau).exp() * Self::Phi(&(-d2))
+                -tau * self.strike.to_f64().unwrap() * (-self.risk_free_rate * tau).exp() * Self::Phi(&(-d2))
             }
         }
     }
@@ -420,7 +421,7 @@ impl EuropeanGreeks for OptionTick {
 
         let tau = self.tau();
         (-self.risk_free_rate * tau).exp() * Self::phi(&d2)
-            / (self.strike * implied_volatility * tau.sqrt())
+            / (self.strike.to_f64().unwrap() * implied_volatility * tau.sqrt())
     }
 }
 
@@ -429,12 +430,13 @@ mod tests {
     use crate::greeks::*;
     use assert_float_eq::*;
     use chrono::prelude::*;
+	use rust_decimal_macros::dec;
 
-    #[test]
+	#[test]
     fn greeks_call() {
         let date_30days = Utc::now() + chrono::Duration::days(30);
         let option = OptionTick::builder()
-            .strike(250.)
+            .strike(dec!(250))
             .asset_price(100.)
             .risk_free_rate(0.001)
             .option_value(OptionValue::ImpliedVolatility(10.))
@@ -454,7 +456,7 @@ mod tests {
     fn greeks_put() {
         let date_30days = Utc::now() + chrono::Duration::days(30);
         let option = OptionTick::builder()
-            .strike(250.)
+            .strike(dec!(250))
             .asset_price(100.)
             .risk_free_rate(0.001)
             .option_value(OptionValue::ImpliedVolatility(10.))

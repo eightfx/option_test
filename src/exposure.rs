@@ -3,7 +3,7 @@
 //!
 //! Greeks Exposure can be calculated using the following formula:
 //!
-//!     Greeks Exposure = Sum of (Strike * Open Interest * Each Greek * (-1 if Put))
+//!     Greeks Exposure = Sum of (Asset Price * Open Interest * Each Greek * (-1 if Put))
 //!
 //!
 //! # Example
@@ -43,19 +43,20 @@ macro_rules! exposure_impl{
 
 							ensure!(additional_data.open_interest.is_some(), "No open interest is set. Set a value in the open_interest field of the additional_data.");
 							let oi = additional_data.open_interest.unwrap();
+							let asset_price = option_tick.asset_price().unwrap();
 
 							match data.option_value{
 								OptionValue::Price(_) =>  {
 									match data.option_type{
-										OptionType::Put => sum -= oi * option_tick.get_implied_volatility().$greeks_name(),
-										OptionType::Call => sum += oi * option_tick.get_implied_volatility().$greeks_name()
+										OptionType::Put => sum -= oi * option_tick.get_implied_volatility().$greeks_name() * asset_price,
+										OptionType::Call => sum += oi * option_tick.get_implied_volatility().$greeks_name() * asset_price
 									}
 								}
 
 								OptionValue::ImpliedVolatility(_) => {
 									match data.option_type{
-										OptionType::Put => sum -= oi * option_tick.$greeks_name(),
-										OptionType::Call => sum += oi * option_tick.$greeks_name()
+										OptionType::Put => sum -= oi * option_tick.$greeks_name() * asset_price,
+										OptionType::Call => sum += oi * option_tick.$greeks_name() * asset_price
 									}
 								}
 

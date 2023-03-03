@@ -72,7 +72,7 @@ impl CRUD for OptionChain<OptionTick> {
         let mut index = 0;
         let mut found = false;
         for (i, t) in ticks.iter().enumerate() {
-            if t.option_value == tick.option_value && t.side == tick.side {
+            if t.strike == tick.strike && t.option_type == tick.option_type {
                 index = i;
                 found = true;
                 break;
@@ -91,9 +91,9 @@ impl CRUD for OptionChain<OptionTick> {
         let mut index = 0;
         let mut found = false;
         for (i, t) in ticks.iter().enumerate() {
-            if t.option_value == tick.option_value && t.side == tick.side {
-                index = i;
-                found = true;
+			if t.strike == tick.strike && t.option_type == tick.option_type {
+				index = i;
+				found = true;
                 break;
             }
         }

@@ -6,8 +6,11 @@ use anyhow::{anyhow, ensure, Result};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use typed_builder::TypedBuilder;
+use rust_decimal::prelude::*;
 
 pub type FloatType = f64;
+pub type DecimalType = Decimal;
+
 
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
 pub enum OptionType {
@@ -42,7 +45,7 @@ pub struct AdditionalOptionData {
 
 #[derive(Clone, Debug, TypedBuilder, Serialize, Deserialize)]
 pub struct OptionTick {
-    pub strike: FloatType,
+    pub strike: DecimalType,
     pub maturity: DateTime<Utc>,
     pub asset_price: FloatType,
     #[builder(default = 0.001)]
@@ -189,11 +192,37 @@ impl StrikeBoard {
 pub struct OptionChain<T: OptionBase>(pub Vec<T>);
 impl<T> OptionChain<T>
 where
-    T: OptionBase,
+    T: OptionBase+ ExtractCommonInfo,
 {
     pub fn map<U: OptionBase>(&self, f: impl Fn(&T) -> U) -> OptionChain<U> {
         OptionChain(self.0.iter().map(f).collect())
     }
+
+    pub fn sort_by_strike(&self) -> Self {
+        let mut sorted_chain = self.clone();
+        sorted_chain
+            .0
+            .sort_by(|a, b| a.strike().unwrap().partial_cmp(&b.strike().unwrap()).unwrap());
+		sorted_chain
+    }
+
+
+	pub fn map_to_vec<U>(&self, f: impl Fn(&T) -> U) -> (Vec<FloatType>,Vec<U>)
+	{
+		let mut values = Vec::new();
+		let mut strikes = Vec::new();
+		let mut option_chain = self.clone();
+		option_chain = option_chain.sort_by_strike();
+
+		for option_tick in self.0.iter().rev(){
+			strikes.push(option_tick.strike().unwrap().to_f64().unwrap());
+			values.push(f(option_tick));
+			
+		}
+
+		(strikes, values)
+		
+	}
 }
 
 // impl<T> OptionChain<Result<T>>{
@@ -228,8 +257,8 @@ impl OptionChain<OptionTick> {
         let mut otm_chain = self.clone();
         // Extract a call if the strike is higher than the underlying asset price, and extract a put if the strike is lower.
         otm_chain.0.retain(|t| {
-            (matches!(t.option_type, OptionType::Call) && t.strike >= asset_price)
-                || (matches!(t.option_type, OptionType::Put) && t.strike < asset_price)
+            (matches!(t.option_type, OptionType::Call) && t.strike.to_f64().unwrap() >= asset_price)
+                || (matches!(t.option_type, OptionType::Put) && t.strike.to_f64().unwrap() < asset_price)
         });
 
         otm_chain
@@ -250,9 +279,9 @@ impl OptionChain<OptionTick> {
                 .0
                 .iter()
                 .min_by(|a, b| {
-                    (a.strike - asset_price)
+                    (a.strike.to_f64().unwrap() - asset_price)
                         .abs()
-                        .partial_cmp(&(b.strike - asset_price).abs())
+                        .partial_cmp(&(b.strike.to_f64().unwrap() - asset_price).abs())
                         .unwrap()
                 })
                 .unwrap();
@@ -262,9 +291,9 @@ impl OptionChain<OptionTick> {
                 .0
                 .iter()
                 .min_by(|a, b| {
-                    (a.strike - asset_price)
+                    (a.strike.to_f64().unwrap() - asset_price)
                         .abs()
-                        .partial_cmp(&(b.strike - asset_price).abs())
+                        .partial_cmp(&(b.strike.to_f64().unwrap() - asset_price).abs())
                         .unwrap()
                 })
                 .unwrap();
@@ -274,9 +303,9 @@ impl OptionChain<OptionTick> {
                 .0
                 .iter()
                 .min_by(|a, b| {
-                    (a.strike - asset_price)
+                    (a.strike.to_f64().unwrap() - asset_price)
                         .abs()
-                        .partial_cmp(&(b.strike - asset_price).abs())
+                        .partial_cmp(&(b.strike.to_f64().unwrap() - asset_price).abs())
                         .unwrap()
                 })
                 .unwrap();
@@ -284,9 +313,9 @@ impl OptionChain<OptionTick> {
                 .0
                 .iter()
                 .min_by(|a, b| {
-                    (a.strike - asset_price)
+                    (a.strike.to_f64().unwrap() - asset_price)
                         .abs()
-                        .partial_cmp(&(b.strike - asset_price).abs())
+                        .partial_cmp(&(b.strike.to_f64().unwrap() - asset_price).abs())
                         .unwrap()
                 })
                 .unwrap();
@@ -295,20 +324,21 @@ impl OptionChain<OptionTick> {
         // linear interpolation
         let strike = asset_price;
         let value = best_put.get_value()
-            + (best_call.get_value() - best_put.get_value()) * (asset_price - best_put.strike)
-            / (best_call.strike - best_put.strike);
+            + (best_call.get_value() - best_put.get_value()) * (asset_price - best_put.strike.to_f64().unwrap() )
+			/ (best_call.strike.to_f64().unwrap() - best_put.strike.to_f64().unwrap()) ;
 
-        let option_value: OptionValue = match best_put.option_value {
-            OptionValue::Price(_) => OptionValue::Price(value),
-            OptionValue::ImpliedVolatility(_) => OptionValue::ImpliedVolatility(value),
-        };
+		let option_value: OptionValue = match best_put.option_value {
+			OptionValue::Price(_) => OptionValue::Price(value),
+			OptionValue::ImpliedVolatility(_) => OptionValue::ImpliedVolatility(value),
+		};
 
-        let mut tick: OptionTick = best_put.to_owned();
+		let mut tick: OptionTick = best_put.to_owned();
 
-        tick.strike = strike;
-        tick.option_value = option_value;
-        tick
-    }
+		tick.strike = Decimal::from_f64(strike).unwrap();
+		tick.option_value = option_value;
+		tick.option_type = OptionType::Call;
+		tick
+	}
 
     pub fn call(&self) -> Self {
         let mut call_chain = self.clone();
@@ -326,14 +356,6 @@ impl OptionChain<OptionTick> {
             .retain(|t| matches!(t.option_type, OptionType::Put));
 
         put_chain
-    }
-
-    pub fn sort_by_strike(&self) -> Self {
-        let mut sorted_chain = self.clone();
-        sorted_chain
-            .0
-            .sort_by(|a, b| a.strike.partial_cmp(&b.strike).unwrap());
-        sorted_chain
     }
 
     pub fn call_25delta(&self) -> OptionTick {
@@ -405,8 +427,11 @@ impl OptionChain<OptionTick> {
 		let mut strikes:Vec<FloatType> = Vec::new();
 		let sorted_chain = self.sort_by_strike();
 		for option_tick in sorted_chain.0{
-			smile_curve.push(option_tick.iv());
-			strikes.push(option_tick.strike().unwrap());
+			let iv = option_tick.iv();
+			if iv.is_finite() && !iv.is_nan(){
+				smile_curve.push(iv);
+				strikes.push(option_tick.strike().unwrap().to_f64().unwrap());
+			}
 		}
 		
 		(strikes,smile_curve)
